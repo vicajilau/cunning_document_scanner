@@ -1,3 +1,8 @@
+## 2.5.1
+### Android
+* Made HMS ML Kit dependencies optional using `compileOnly` and dynamic reflection to resolve `allowBackup` manifest merger conflicts (fixes #144).
+* Prevented bundling of Huawei HMS libraries in the final APK by default, reducing build sizes for non-HMS projects.
+
 ## 2.5.0
 ### General
 * Introduced `ScannerSource` enum to specify the source of document images: `camera`, `gallery`, or `cameraAndGallery`.
