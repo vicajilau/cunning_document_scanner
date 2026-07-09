@@ -24,9 +24,6 @@ import biz.cunning.cunning_document_scanner.fallback.utils.CameraUtil
 import biz.cunning.cunning_document_scanner.fallback.utils.FileUtil
 import biz.cunning.cunning_document_scanner.fallback.utils.ImageUtil
 import java.io.File
-import com.huawei.hms.mlsdk.common.MLFrame
-import com.huawei.hms.mlsdk.dsc.MLDocumentSkewCorrectionAnalyzerFactory
-import com.huawei.hms.mlsdk.dsc.MLDocumentSkewCorrectionAnalyzerSetting
 import android.content.pm.PackageManager
 /**
  * This class contains the main document scanner code. It opens the camera, lets the user
@@ -258,61 +255,33 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
     }
 
+    private fun isHmsLibraryAvailable(): Boolean {
+        return try {
+            Class.forName("com.huawei.hms.mlsdk.dsc.MLDocumentSkewCorrectionAnalyzerFactory")
+            true
+        } catch (e: ClassNotFoundException) {
+            false
+        }
+    }
+
     private fun detectCorners(photo: Bitmap, onComplete: (Quad) -> Unit) {
-        if (isHmsAvailable()) {
+        if (isHmsAvailable() && isHmsLibraryAvailable()) {
             try {
-                val setting = MLDocumentSkewCorrectionAnalyzerSetting.Factory().create()
-                val analyzer = MLDocumentSkewCorrectionAnalyzerFactory.getInstance()
-                    .getDocumentSkewCorrectionAnalyzer(setting)
-                val frame = MLFrame.fromBitmap(photo)
-
-                analyzer.asyncDocumentSkewDetect(frame)
-                    .addOnSuccessListener { result: com.huawei.hms.mlsdk.dsc.MLDocumentSkewDetectResult? ->
-                        if (result != null) {
-                            val lt = result.leftTopPosition
-                            val rt = result.rightTopPosition
-                            val lb = result.leftBottomPosition
-                            val rb = result.rightBottomPosition
-
-                            if (lt != null && rt != null && lb != null && rb != null) {
-                                val tl = Point(lt.x.toDouble(), lt.y.toDouble())
-                                val tr = Point(rt.x.toDouble(), rt.y.toDouble())
-                                val bl = Point(lb.x.toDouble(), lb.y.toDouble())
-                                val br = Point(rb.x.toDouble(), rb.y.toDouble())
-                                val sortedQuad = sortPoints(listOf(tl, tr, bl, br))
-                                analyzer.stop()
-                                onComplete(sortedQuad)
-                                return@addOnSuccessListener
-                            }
-                        }
-                        analyzer.stop()
+                val detectorClass = Class.forName("biz.cunning.cunning_document_scanner.fallback.HmsEdgeDetector")
+                val detector = detectorClass.getDeclaredConstructor().newInstance() as EdgeDetector
+                detector.detect(photo) { detectedQuad ->
+                    if (detectedQuad != null) {
+                        onComplete(detectedQuad)
+                    } else {
                         onComplete(getDefaultCorners(photo))
                     }
-                    .addOnFailureListener {
-                        try {
-                            analyzer.stop()
-                        } catch (e: Exception) {}
-                        onComplete(getDefaultCorners(photo))
-                    }
+                }
                 return
             } catch (e: Exception) {
-                // Fallback to default corners if HMS ML Kit fails to initialize/analyze
+                android.util.Log.e("DocumentScannerActivity", "Error loading HmsEdgeDetector dynamically", e)
             }
         }
         onComplete(getDefaultCorners(photo))
-    }
-
-    private fun sortPoints(points: List<Point>): Quad {
-        val sortedByY = points.sortedBy { it.y }
-        val topPoints = sortedByY.take(2).sortedBy { it.x }
-        val bottomPoints = sortedByY.takeLast(2).sortedBy { it.x }
-
-        val topLeft = topPoints[0]
-        val topRight = topPoints[1]
-        val bottomLeft = bottomPoints[0]
-        val bottomRight = bottomPoints[1]
-
-        return Quad(topLeft, topRight, bottomRight, bottomLeft)
     }
 
     private fun getDefaultCorners(photo: Bitmap): Quad {

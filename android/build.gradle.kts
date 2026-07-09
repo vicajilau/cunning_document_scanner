@@ -49,6 +49,6 @@ plugins.withId("org.jetbrains.kotlin.android") {
 
 dependencies {
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
-    implementation("com.huawei.hms:ml-computer-vision-documentskew:3.11.0.301")
-    implementation("com.huawei.hms:ml-computer-vision-documentskew-model:3.7.0.301")
+    compileOnly("com.huawei.hms:ml-computer-vision-documentskew:3.11.0.301")
+    compileOnly("com.huawei.hms:ml-computer-vision-documentskew-model:3.7.0.301")
 }
