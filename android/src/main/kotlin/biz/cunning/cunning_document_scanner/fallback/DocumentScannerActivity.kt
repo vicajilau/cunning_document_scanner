@@ -93,7 +93,7 @@ class DocumentScannerActivity : AppCompatActivity() {
                 return@CameraUtil
             }
 
-            // get document corners asynchronously using HMS if available, or fallback to default corners
+            // get default corners for cropping
             detectCorners(photo) { corners ->
                 document = Document(originalPhotoPath, photo.width, photo.height, corners)
 
@@ -246,41 +246,7 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
     }
 
-    private fun isHmsAvailable(): Boolean {
-        return try {
-            packageManager.getPackageInfo("com.huawei.hwid", 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
-        }
-    }
-
-    private fun isHmsLibraryAvailable(): Boolean {
-        return try {
-            Class.forName("com.huawei.hms.mlsdk.dsc.MLDocumentSkewCorrectionAnalyzerFactory")
-            true
-        } catch (e: ClassNotFoundException) {
-            false
-        }
-    }
-
     private fun detectCorners(photo: Bitmap, onComplete: (Quad) -> Unit) {
-        if (isHmsAvailable() && isHmsLibraryAvailable()) {
-            try {
-                val detectorClass = Class.forName("biz.cunning.cunning_document_scanner.fallback.HmsEdgeDetector")
-                val detector = detectorClass.getDeclaredConstructor().newInstance() as EdgeDetector
-                detector.detect(photo) { detectedQuad ->
-                    if (detectedQuad != null) {
-                        onComplete(detectedQuad)
-                    } else {
-                        onComplete(getDefaultCorners(photo))
-                    }
-                }
-                return
-            } catch (e: Exception) {
-                android.util.Log.e("DocumentScannerActivity", "Error loading HmsEdgeDetector dynamically", e)
-            }
-        }
         onComplete(getDefaultCorners(photo))
     }
 

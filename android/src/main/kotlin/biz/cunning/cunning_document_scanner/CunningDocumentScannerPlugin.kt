@@ -9,8 +9,6 @@ import androidx.core.app.ActivityCompat
 import biz.cunning.cunning_document_scanner.fallback.DocumentScannerActivity
 import biz.cunning.cunning_document_scanner.fallback.constants.DocumentScannerExtra
 import biz.cunning.cunning_document_scanner.fallback.utils.FileUtil
-import java.io.File
-import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_PDF
@@ -92,7 +90,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
         try {
             ActivityCompat.startActivityForResult(activity, intent, START_GALLERY_PICKER, null)
-        } catch (e: ActivityNotFoundException) {
+        } catch (_: ActivityNotFoundException) {
             pendingResult?.error("ERROR", "Failed to start gallery picker", null)
         }
     }
@@ -153,10 +151,14 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                             if (error != null) {
                                 pendingResult?.error("ERROR", "error - $error", null)
                             } else {
-                                // get an array with scanned document file paths
-                                val scanningResult: GmsDocumentScanningResult =
-                                    data?.extras?.getParcelable("extra_scanning_result")
-                                        ?: return@ActivityResultListener false
+                                 // get an array with scanned document file paths
+                                 val scanningResult = data?.extras?.let { extras ->
+                                     androidx.core.os.BundleCompat.getParcelable(
+                                         extras,
+                                         "extra_scanning_result",
+                                         GmsDocumentScanningResult::class.java
+                                     )
+                                 } ?: return@ActivityResultListener false
 
                                 if (asPdf) {
                                     val pdfUri = scanningResult.pdf?.uri?.toString()?.removePrefix("file://")
@@ -281,31 +283,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
     }
 
-    private fun isHmsAvailable(context: android.content.Context): Boolean {
-        return try {
-            context.packageManager.getPackageInfo("com.huawei.hwid", 0)
-            true
-        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
-            false
-        }
-    }
-
     private fun startScan(noOfPages: Int, isGalleryImportAllowed: Boolean, scannerMode: Int, asPdf: Boolean) {
-        if (isHmsAvailable(activity)) {
-            val intent = createDocumentScanIntent(noOfPages)
-            try {
-                ActivityCompat.startActivityForResult(
-                    this.activity,
-                    intent,
-                    START_DOCUMENT_FB_ACTIVITY,
-                    null
-                )
-            } catch (e: ActivityNotFoundException) {
-                pendingResult?.error("ERROR", "FAILED TO START ACTIVITY", null)
-            }
-            return
-        }
-
         val optionsBuilder = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(isGalleryImportAllowed)
             .setPageLimit(noOfPages)
@@ -318,31 +296,34 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
 
         val options = optionsBuilder.build()
-        val scanner = GmsDocumentScanning.getClient(options)
-        scanner.getStartScanIntent(activity).addOnSuccessListener {
-            try {
-                // Use a custom request code for onActivityResult identification
-                activity.startIntentSenderForResult(it, START_DOCUMENT_ACTIVITY, null, 0, 0, 0)
-
-            } catch (e: IntentSender.SendIntentException) {
-                pendingResult?.error("ERROR", "Failed to start document scanner", null)
-            }
-        }.addOnFailureListener {
-            if (it is MlKitException) {
-                val intent = createDocumentScanIntent(noOfPages)
+        try {
+            val scanner = GmsDocumentScanning.getClient(options)
+            scanner.getStartScanIntent(activity).addOnSuccessListener {
                 try {
-                    ActivityCompat.startActivityForResult(
-                        this.activity,
-                        intent,
-                        START_DOCUMENT_FB_ACTIVITY,
-                        null
-                    )
-                } catch (e: ActivityNotFoundException) {
-                    pendingResult?.error("ERROR", "FAILED TO START ACTIVITY", null)
+                    // Use a custom request code for onActivityResult identification
+                    activity.startIntentSenderForResult(it, START_DOCUMENT_ACTIVITY, null, 0, 0, 0)
+                } catch (_: IntentSender.SendIntentException) {
+                    pendingResult?.error("ERROR", "Failed to start document scanner", null)
                 }
-            } else {
-                pendingResult?.error("ERROR", "Failed to start document scanner Intent", null)
+            }.addOnFailureListener {
+                openFallbackScanner(noOfPages)
             }
+        } catch (_: Exception) {
+            openFallbackScanner(noOfPages)
+        }
+    }
+
+    private fun openFallbackScanner(noOfPages: Int) {
+        val intent = createDocumentScanIntent(noOfPages)
+        try {
+            ActivityCompat.startActivityForResult(
+                this.activity,
+                intent,
+                START_DOCUMENT_FB_ACTIVITY,
+                null
+            )
+        } catch (_: ActivityNotFoundException) {
+            pendingResult?.error("ERROR", "FAILED TO START ACTIVITY", null)
         }
     }
 

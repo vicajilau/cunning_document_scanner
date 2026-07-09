@@ -1,7 +1,8 @@
-## 2.5.1
+## 2.6.0
 ### Android
-* Made HMS ML Kit dependencies optional using `compileOnly` and dynamic reflection to resolve `allowBackup` manifest merger conflicts (fixes #144).
-* Prevented bundling of Huawei HMS libraries in the final APK by default, reducing build sizes for non-HMS projects.
+* Removed HMS (Huawei Mobile Services) support entirely to ensure 16 KB page-size compatibility on Android 15+ (fixes #146).
+* Replaced deprecated `getParcelable(key)` with type-safe `androidx.core.os.BundleCompat.getParcelable` for Android 13+ compatibility.
+* Migrated the legacy `android` block to the modern `configure<LibraryExtension>` block and updated conditional Kotlin plugin application in `build.gradle.kts` to resolve build/deprecation warnings.
 
 ## 2.5.0
 ### General
