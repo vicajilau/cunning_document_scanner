@@ -3,6 +3,7 @@
 * Removed HMS (Huawei Mobile Services) support entirely to ensure 16 KB page-size compatibility on Android 15+ (fixes #146).
 * Replaced deprecated `getParcelable(key)` with type-safe `androidx.core.os.BundleCompat.getParcelable` for Android 13+ compatibility.
 * Migrated the legacy `android` block to the modern `configure<LibraryExtension>` block and updated conditional Kotlin plugin application in `build.gradle.kts` to resolve build/deprecation warnings.
+* Removed redundant and deprecated `sourceSets` block, as Kotlin source directories are resolved automatically by Gradle.
 
 ## 2.5.0
 ### General
