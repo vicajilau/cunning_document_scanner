@@ -119,49 +119,6 @@ There are some features in Android that allow you to adjust the scanner that wil
 ```
 
 
-#### Optional Huawei HMS ML Kit Support
-
-Starting from version 2.5.0, this plugin supports automatic document edge detection on Huawei Mobile Services (HMS) devices (devices without Google Play Services, such as newer Huawei/Honor phones) using Huawei's ML Kit Document Skew Correction.
-
-To keep the plugin lightweight and avoid manifest merger conflicts (`allowBackup` errors) for non-Huawei projects, HMS dependencies are marked as `compileOnly` and are **disabled by default**.
-
-To enable HMS ML Kit support in your application:
-
-1. Add the Huawei Maven repository to your root project's `android/build.gradle` (or `android/build.gradle.kts`):
-
-   ```groovy
-   allprojects {
-       repositories {
-           google()
-           mavenCentral()
-           maven { url 'https://developer.huawei.com/repo/' }
-       }
-   }
-   ```
-
-2. Add the Huawei ML Kit Document Skew Correction dependencies in your `android/app/build.gradle` (or `android/app/build.gradle.kts`):
-
-   ```groovy
-   dependencies {
-       // ... other dependencies
-       implementation 'com.huawei.hms:ml-computer-vision-documentskew:3.11.0.301'
-       implementation 'com.huawei.hms:ml-computer-vision-documentskew-model:3.7.0.301'
-   }
-   ```
-
-3. Note that since Huawei's ML Kit library defines `android:allowBackup="false"`, you will need to add `tools:replace="android:allowBackup"` to the `<application>` tag in your `android/app/src/main/AndroidManifest.xml` to avoid a manifest merger conflict:
-
-   ```xml
-   <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-       xmlns:tools="http://schemas.android.com/tools">
-       <application
-           android:allowBackup="true"
-           tools:replace="android:allowBackup"
-           ... >
-           ...
-       </application>
-   </manifest>
-   ```
 
 ### iOS Specific
 
