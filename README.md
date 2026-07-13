@@ -1,5 +1,16 @@
 # Cunning Document Scanner
 
+### In Loving Memory of Marcel Pater 🌟
+
+> *“A new star has lit up in the sky... one that will shine brightly and guide us forever.”*
+>
+> This repository is dedicated to the memory of its creator and owner, **Marcel Pater**.
+> Thank you, Marcel, for your passion, your dedication, and for sharing your light with the world. You will always be remembered.
+>
+> His work lives on, and this project continues to be maintained in his honor.
+
+---
+
 Cunning Document Scanner is a Flutter-based document scanner application that enables you to capture images of paper documents and convert them into digital files effortlessly. This application is designed to run on Android and iOS devices with minimum API levels of 21 and 13, respectively.
 
 ## Key Features
