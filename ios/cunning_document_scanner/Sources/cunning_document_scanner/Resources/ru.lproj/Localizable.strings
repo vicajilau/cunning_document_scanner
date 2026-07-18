@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Камера";
 "cunning_document_scanner_gallery" = "Медиатека";
 "cunning_document_scanner_cancel" = "Отмена";
+"cunning_document_scanner_done" = "Готово";
+"cunning_document_scanner_next" = "Далее";
+"cunning_document_scanner_crop_title" = "Обрезать страницу %1$d из %2$d";

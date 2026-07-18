@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Камера";
 "cunning_document_scanner_gallery" = "Бібліотека фото";
 "cunning_document_scanner_cancel" = "Скасувати";
+"cunning_document_scanner_done" = "Готово";
+"cunning_document_scanner_next" = "Далі";
+"cunning_document_scanner_crop_title" = "Обрізати сторінку %1$d з %2$d";

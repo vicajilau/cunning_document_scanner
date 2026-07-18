@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Fotoaparát";
 "cunning_document_scanner_gallery" = "Knihovna fotografií";
 "cunning_document_scanner_cancel" = "Zrušit";
+"cunning_document_scanner_done" = "Hotovo";
+"cunning_document_scanner_next" = "Další";
+"cunning_document_scanner_crop_title" = "Oříznout stránku %1$d z %2$d";

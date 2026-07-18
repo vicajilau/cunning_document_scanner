@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "กล้อง";
 "cunning_document_scanner_gallery" = "คลังรูปภาพ";
 "cunning_document_scanner_cancel" = "ยกเลิก";
+"cunning_document_scanner_done" = "เสร็จสิ้น";
+"cunning_document_scanner_next" = "ถัดไป";
+"cunning_document_scanner_crop_title" = "ครอบตัดหน้า %1$d จาก %2$d";

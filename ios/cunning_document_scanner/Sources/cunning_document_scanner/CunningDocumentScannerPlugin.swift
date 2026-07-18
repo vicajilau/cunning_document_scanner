@@ -195,19 +195,27 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
     // MARK: - UIImagePickerControllerDelegate
 
     public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-        picker.dismiss(animated: true)
-        
         guard let image = info[.originalImage] as? UIImage else {
-            resultChannel?(nil)
+            picker.dismiss(animated: true) {
+                self.resultChannel?(nil)
+            }
             return
         }
         
-        processSelectedImages([image])
+        picker.dismiss(animated: true) {
+            let cropper = CunningDocumentCropperViewController(images: [image]) { [weak self] key, defaultValue in
+                return self?.getLocalizedOption(key, defaultValue: defaultValue) ?? defaultValue
+            }
+            cropper.delegate = self
+            cropper.modalPresentationStyle = .fullScreen
+            self.rootViewController?.present(cropper, animated: true)
+        }
     }
 
     public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-        picker.dismiss(animated: true)
-        resultChannel?(nil)
+        picker.dismiss(animated: true) {
+            self.resultChannel?(nil)
+        }
     }
 }
 
@@ -216,10 +224,10 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
 @available(iOS 14.0, *)
 extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
     public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-        picker.dismiss(animated: true)
-        
         if results.isEmpty {
-            resultChannel?(nil)
+            picker.dismiss(animated: true) {
+                self.resultChannel?(nil)
+            }
             return
         }
         
@@ -241,10 +249,35 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
         dispatchGroup.notify(queue: .main) {
             let validImages = images.filter { $0.size.width > 0 }
             if validImages.isEmpty {
-                self.resultChannel?(nil)
+                picker.dismiss(animated: true) {
+                    self.resultChannel?(nil)
+                }
             } else {
-                self.processSelectedImages(validImages)
+                picker.dismiss(animated: true) {
+                    let cropper = CunningDocumentCropperViewController(images: validImages) { [weak self] key, defaultValue in
+                        return self?.getLocalizedOption(key, defaultValue: defaultValue) ?? defaultValue
+                    }
+                    cropper.delegate = self
+                    cropper.modalPresentationStyle = .fullScreen
+                    self.rootViewController?.present(cropper, animated: true)
+                }
             }
+        }
+    }
+}
+
+// MARK: - CunningDocumentCropperDelegate
+
+extension CunningDocumentScannerPlugin: CunningDocumentCropperDelegate {
+    func didFinishCropping(croppedImages: [UIImage]) {
+        rootViewController?.dismiss(animated: true) {
+            self.processSelectedImages(croppedImages)
+        }
+    }
+    
+    func didCancelCropping() {
+        rootViewController?.dismiss(animated: true) {
+            self.resultChannel?(nil)
         }
     }
 }

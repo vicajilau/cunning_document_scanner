@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Kamera";
 "cunning_document_scanner_gallery" = "Bildebibliotek";
 "cunning_document_scanner_cancel" = "Avbryt";
+"cunning_document_scanner_done" = "Ferdig";
+"cunning_document_scanner_next" = "Neste";
+"cunning_document_scanner_crop_title" = "Beskjær side %1$d av %2$d";

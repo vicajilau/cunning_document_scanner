@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "الكاميرا";
 "cunning_document_scanner_gallery" = "مكتبة الصور";
 "cunning_document_scanner_cancel" = "إلغاء";
+"cunning_document_scanner_done" = "تم";
+"cunning_document_scanner_next" = "التالي";
+"cunning_document_scanner_crop_title" = "قص الصفحة %1$d من %2$d";

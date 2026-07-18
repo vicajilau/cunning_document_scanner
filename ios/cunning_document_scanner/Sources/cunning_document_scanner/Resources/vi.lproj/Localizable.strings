@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Máy ảnh";
 "cunning_document_scanner_gallery" = "Thư viện ảnh";
 "cunning_document_scanner_cancel" = "Hủy";
+"cunning_document_scanner_done" = "Xong";
+"cunning_document_scanner_next" = "Tiếp theo";
+"cunning_document_scanner_crop_title" = "Cắt trang %1$d / %2$d";

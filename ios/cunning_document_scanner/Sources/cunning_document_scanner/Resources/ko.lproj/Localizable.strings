@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "카메라";
 "cunning_document_scanner_gallery" = "사진 보관함";
 "cunning_document_scanner_cancel" = "취소";
+"cunning_document_scanner_done" = "완료";
+"cunning_document_scanner_next" = "다음";
+"cunning_document_scanner_crop_title" = "%2$d페이지 중 %1$d페이지 자르기";

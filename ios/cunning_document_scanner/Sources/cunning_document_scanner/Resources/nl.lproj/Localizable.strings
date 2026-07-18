@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Camera";
 "cunning_document_scanner_gallery" = "Fotobibliotheek";
 "cunning_document_scanner_cancel" = "Annuleren";
+"cunning_document_scanner_done" = "Gereed";
+"cunning_document_scanner_next" = "Volgende";
+"cunning_document_scanner_crop_title" = "Pagina %1$d van %2$d bijsnijden";

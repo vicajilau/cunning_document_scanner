@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "Aparat";
 "cunning_document_scanner_gallery" = "Biblioteka zdjęć";
 "cunning_document_scanner_cancel" = "Anuluj";
+"cunning_document_scanner_done" = "Gotowe";
+"cunning_document_scanner_next" = "Dalej";
+"cunning_document_scanner_crop_title" = "Przytnij stronę %1$d z %2$d";

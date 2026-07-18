@@ -1,3 +1,6 @@
 "cunning_document_scanner_camera" = "कैमरा";
 "cunning_document_scanner_gallery" = "फ़ोटो लाइब्रेरी";
 "cunning_document_scanner_cancel" = "रद्द करें";
+"cunning_document_scanner_done" = "हो गया";
+"cunning_document_scanner_next" = "अगला";
+"cunning_document_scanner_crop_title" = "%2$d में से %1$d पृष्ठ क्रॉप करें";
