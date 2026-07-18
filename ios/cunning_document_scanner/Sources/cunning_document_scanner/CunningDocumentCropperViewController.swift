@@ -23,9 +23,19 @@ class CunningDocumentCropperViewController: UIViewController {
     private let cancelButton = UIButton(type: .system)
     private let doneButton = UIButton(type: .system)
     private let rotateButton = UIButton(type: .system)
+    private let backButton = UIButton(type: .system)
     
     private let activityIndicator = UIActivityIndicatorView(style: .large)
     private let ciContext = CIContext(options: nil)
+    
+    private struct PageCoordinates {
+        let topLeft: CGPoint
+        let topRight: CGPoint
+        let bottomLeft: CGPoint
+        let bottomRight: CGPoint
+    }
+    
+    private var savedCoordinates: [PageCoordinates?] = []
     
     private var hasSetupPoints = false
     private var hasUserModifiedPoints = false
@@ -42,6 +52,7 @@ class CunningDocumentCropperViewController: UIViewController {
         self.localize = localize
         self.images = images
         super.init(nibName: nil, bundle: nil)
+        self.savedCoordinates = Array(repeating: nil, count: images.count)
     }
     
     override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -132,6 +143,15 @@ class CunningDocumentCropperViewController: UIViewController {
         rotateButton.addTarget(self, action: #selector(handleRotate), for: .touchUpInside)
         bottomBar.addSubview(rotateButton)
         
+        // Back Button configuration (top-left)
+        backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: config), for: .normal)
+        backButton.tintColor = .white
+        backButton.backgroundColor = UIColor.white.withAlphaComponent(0.15)
+        backButton.layer.cornerRadius = 18
+        backButton.clipsToBounds = true
+        backButton.addTarget(self, action: #selector(handleBack), for: .touchUpInside)
+        topBar.addSubview(backButton)
+        
         loadCurrentImage()
     }
     
@@ -144,9 +164,16 @@ class CunningDocumentCropperViewController: UIViewController {
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         doneButton.translatesAutoresizingMaskIntoConstraints = false
         rotateButton.translatesAutoresizingMaskIntoConstraints = false
+        backButton.translatesAutoresizingMaskIntoConstraints = false
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
+            // Back Button (Top Bar left)
+            backButton.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 15),
+            backButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            backButton.widthAnchor.constraint(equalToConstant: 36),
+            backButton.heightAnchor.constraint(equalToConstant: 36),
+            
             // Activity Indicator
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
@@ -215,9 +242,21 @@ class CunningDocumentCropperViewController: UIViewController {
         doneButton.tintColor = .white
         doneButton.backgroundColor = .systemBlue
         
-        // Reset flags for the new image detection
-        hasSetupPoints = false
-        hasUserModifiedPoints = false
+        // Show/hide back button based on page index
+        backButton.isHidden = (currentIndex == 0)
+        
+        // Restore coordinates if previously saved, otherwise run auto-detection
+        if let saved = savedCoordinates[currentIndex] {
+            self.normTopLeft = saved.topLeft
+            self.normTopRight = saved.topRight
+            self.normBottomLeft = saved.bottomLeft
+            self.normBottomRight = saved.bottomRight
+            self.hasSetupPoints = true
+            self.hasUserModifiedPoints = true
+        } else {
+            self.hasSetupPoints = false
+            self.hasUserModifiedPoints = false
+        }
         view.setNeedsLayout()
     }
     
@@ -301,10 +340,19 @@ class CunningDocumentCropperViewController: UIViewController {
         guard currentIndex < images.count else { return }
         guard let currentImage = self.currentNormalizedImage else { return }
         
+        // Save current coordinates
+        self.savedCoordinates[currentIndex] = PageCoordinates(
+            topLeft: self.normTopLeft,
+            topRight: self.normTopRight,
+            bottomLeft: self.normBottomLeft,
+            bottomRight: self.normBottomRight
+        )
+        
         // Show spinner / block buttons to prevent double-tap
         cancelButton.isEnabled = false
         doneButton.isEnabled = false
         rotateButton.isEnabled = false
+        backButton.isEnabled = false
         activityIndicator.startAnimating()
         
         // Crop the current image on a background thread
@@ -323,6 +371,7 @@ class CunningDocumentCropperViewController: UIViewController {
                 self.cancelButton.isEnabled = true
                 self.doneButton.isEnabled = true
                 self.rotateButton.isEnabled = true
+                self.backButton.isEnabled = true
                 self.activityIndicator.stopAnimating()
                 
                 if let cropped = cropped {
@@ -351,10 +400,25 @@ class CunningDocumentCropperViewController: UIViewController {
             self.currentNormalizedImage = rotated
             self.imageView.image = rotated
             
+            // Clear any saved coordinates for this page to force re-detection on new orientation
+            self.savedCoordinates[currentIndex] = nil
+            
             // Reset flags to force handle calculation on rotated dimensions
             hasSetupPoints = false
             view.setNeedsLayout()
         }
+    }
+    
+    @objc private func handleBack() {
+        guard currentIndex > 0 else { return }
+        
+        // Remove the last cropped image
+        if !croppedImages.isEmpty {
+            croppedImages.removeLast()
+        }
+        
+        currentIndex -= 1
+        loadCurrentImage()
     }
     
     private func cropImage(image: UIImage, topLeft: CGPoint, topRight: CGPoint, bottomLeft: CGPoint, bottomRight: CGPoint) -> UIImage? {
