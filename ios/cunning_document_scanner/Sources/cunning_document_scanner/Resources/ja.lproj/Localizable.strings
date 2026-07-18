@@ -1,6 +1,4 @@
 "cunning_document_scanner_camera" = "カメラ";
 "cunning_document_scanner_gallery" = "写真ライブラリ";
 "cunning_document_scanner_cancel" = "キャンセル";
-"cunning_document_scanner_done" = "完了";
-"cunning_document_scanner_next" = "次へ";
 "cunning_document_scanner_crop_title" = "ページ %1$d / %2$d を切り抜き";

@@ -1,6 +1,4 @@
 "cunning_document_scanner_camera" = "相机";
 "cunning_document_scanner_gallery" = "照片图库";
 "cunning_document_scanner_cancel" = "取消";
-"cunning_document_scanner_done" = "完成";
-"cunning_document_scanner_next" = "下一步";
 "cunning_document_scanner_crop_title" = "裁剪第 %1$d 页（共 %2$d 页）";

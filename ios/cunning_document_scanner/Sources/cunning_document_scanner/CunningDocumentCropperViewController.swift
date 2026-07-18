@@ -22,8 +22,14 @@ class CunningDocumentCropperViewController: UIViewController {
     private let titleLabel = UILabel()
     private let cancelButton = UIButton(type: .system)
     private let doneButton = UIButton(type: .system)
+    private let rotateButton = UIButton(type: .system)
+    
+    private let activityIndicator = UIActivityIndicatorView(style: .large)
+    private let ciContext = CIContext(options: nil)
     
     private var hasSetupPoints = false
+    private var hasUserModifiedPoints = false
+    private var currentNormalizedImage: UIImage?
     private let localize: (String, String) -> String
     
     // Normalized coordinates (origin at bottom-left)
@@ -34,9 +40,12 @@ class CunningDocumentCropperViewController: UIViewController {
     
     init(images: [UIImage], localize: @escaping (String, String) -> String) {
         self.localize = localize
+        self.images = images
         super.init(nibName: nil, bundle: nil)
-        // Normalize orientations of all images first
-        self.images = images.map { $0.fixedOrientation() }
+    }
+    
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
     }
     
     required init?(coder: NSCoder) {
@@ -73,6 +82,7 @@ class CunningDocumentCropperViewController: UIViewController {
         // Overlay View configuration
         overlayView.onPointsChanged = { [weak self] in
             guard let self = self else { return }
+            self.hasUserModifiedPoints = true
             let frame = self.getContentFrame()
             self.normTopLeft = self.overlayView.normalizedPoint(fromView: self.overlayView.topLeft, contentFrame: frame)
             self.normTopRight = self.overlayView.normalizedPoint(fromView: self.overlayView.topRight, contentFrame: frame)
@@ -80,6 +90,11 @@ class CunningDocumentCropperViewController: UIViewController {
             self.normBottomRight = self.overlayView.normalizedPoint(fromView: self.overlayView.bottomRight, contentFrame: frame)
         }
         view.addSubview(overlayView)
+        
+        // Activity Indicator configuration
+        activityIndicator.color = .white
+        activityIndicator.hidesWhenStopped = true
+        view.addSubview(activityIndicator)
         
         // Top Bar configuration
         topBar.backgroundColor = UIColor.black.withAlphaComponent(0.6)
@@ -94,17 +109,28 @@ class CunningDocumentCropperViewController: UIViewController {
         bottomBar.backgroundColor = UIColor.black.withAlphaComponent(0.6)
         view.addSubview(bottomBar)
         
-        cancelButton.setTitle(localize("cunning_document_scanner_cancel", "Cancel"), for: .normal)
-        cancelButton.setTitleColor(.systemRed, for: .normal)
-        cancelButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        
+        cancelButton.setImage(UIImage(systemName: "xmark", withConfiguration: config), for: .normal)
+        cancelButton.tintColor = .black
+        cancelButton.backgroundColor = .white
+        cancelButton.layer.cornerRadius = 22
+        cancelButton.clipsToBounds = true
         cancelButton.addTarget(self, action: #selector(handleCancel), for: .touchUpInside)
         bottomBar.addSubview(cancelButton)
         
-        doneButton.setTitle(localize("cunning_document_scanner_next", "Next"), for: .normal)
-        doneButton.setTitleColor(.systemBlue, for: .normal)
-        doneButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        doneButton.layer.cornerRadius = 22
+        doneButton.clipsToBounds = true
         doneButton.addTarget(self, action: #selector(handleDone), for: .touchUpInside)
         bottomBar.addSubview(doneButton)
+        
+        rotateButton.setImage(UIImage(systemName: "rotate.right", withConfiguration: config), for: .normal)
+        rotateButton.tintColor = .white
+        rotateButton.backgroundColor = UIColor.white.withAlphaComponent(0.15)
+        rotateButton.layer.cornerRadius = 22
+        rotateButton.clipsToBounds = true
+        rotateButton.addTarget(self, action: #selector(handleRotate), for: .touchUpInside)
+        bottomBar.addSubview(rotateButton)
         
         loadCurrentImage()
     }
@@ -117,8 +143,14 @@ class CunningDocumentCropperViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         doneButton.translatesAutoresizingMaskIntoConstraints = false
+        rotateButton.translatesAutoresizingMaskIntoConstraints = false
+        activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
+            // Activity Indicator
+            activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            
             // Top Bar
             topBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -136,9 +168,18 @@ class CunningDocumentCropperViewController: UIViewController {
             
             cancelButton.leadingAnchor.constraint(equalTo: bottomBar.leadingAnchor, constant: 20),
             cancelButton.centerYAnchor.constraint(equalTo: bottomBar.centerYAnchor),
+            cancelButton.widthAnchor.constraint(equalToConstant: 44),
+            cancelButton.heightAnchor.constraint(equalToConstant: 44),
             
             doneButton.trailingAnchor.constraint(equalTo: bottomBar.trailingAnchor, constant: -20),
             doneButton.centerYAnchor.constraint(equalTo: bottomBar.centerYAnchor),
+            doneButton.widthAnchor.constraint(equalToConstant: 44),
+            doneButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            rotateButton.centerXAnchor.constraint(equalTo: bottomBar.centerXAnchor),
+            rotateButton.centerYAnchor.constraint(equalTo: bottomBar.centerYAnchor),
+            rotateButton.widthAnchor.constraint(equalToConstant: 44),
+            rotateButton.heightAnchor.constraint(equalToConstant: 44),
             
             // Image View (fills space between top and bottom bar)
             imageView.topAnchor.constraint(equalTo: topBar.bottomAnchor),
@@ -157,7 +198,8 @@ class CunningDocumentCropperViewController: UIViewController {
     private func loadCurrentImage() {
         guard currentIndex < images.count else { return }
         
-        let currentImage = images[currentIndex]
+        let currentImage = images[currentIndex].fixedOrientation()
+        self.currentNormalizedImage = currentImage
         imageView.image = currentImage
         
         // Update Title and Done Button Label
@@ -165,19 +207,23 @@ class CunningDocumentCropperViewController: UIViewController {
         let titleFormat = localize("cunning_document_scanner_crop_title", "Crop Page %d of %d")
         titleLabel.text = String(format: titleFormat, pageNum, images.count)
         
-        let doneTitle = (currentIndex == images.count - 1)
-            ? localize("cunning_document_scanner_done", "Done")
-            : localize("cunning_document_scanner_next", "Next")
-        doneButton.setTitle(doneTitle, for: .normal)
+        let isLastPage = (currentIndex == images.count - 1)
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .bold)
+        let doneImageName = isLastPage ? "checkmark" : "arrow.right"
+        let doneImage = UIImage(systemName: doneImageName, withConfiguration: config)
+        doneButton.setImage(doneImage, for: .normal)
+        doneButton.tintColor = .white
+        doneButton.backgroundColor = .systemBlue
         
         // Reset flags for the new image detection
         hasSetupPoints = false
+        hasUserModifiedPoints = false
         view.setNeedsLayout()
     }
     
     private func detectAndSetupPoints() {
         guard currentIndex < images.count else { return }
-        let currentImage = images[currentIndex]
+        guard let currentImage = self.currentNormalizedImage else { return }
         
         // Set default points initially
         self.normTopLeft = CGPoint(x: 0.15, y: 0.85)
@@ -187,29 +233,33 @@ class CunningDocumentCropperViewController: UIViewController {
         
         self.updateHandlesToMatchNormalizedPoints()
         
-        // Run vision detection asynchronously
-        guard let cgImage = currentImage.cgImage else { return }
-        let request = VNDetectDocumentSegmentationRequest { [weak self] request, error in
-            guard let self = self else { return }
-            guard error == nil,
-                  let results = request.results as? [VNRectangleObservation],
-                  let firstResult = results.first else {
-                return // Use defaults
+        if #available(iOS 15.0, *) {
+            // Run vision detection asynchronously
+            guard let cgImage = currentImage.cgImage else { return }
+            let requestIndex = self.currentIndex
+            let request = VNDetectDocumentSegmentationRequest { [weak self] request, error in
+                guard let self = self else { return }
+                guard error == nil,
+                      let results = request.results as? [VNRectangleObservation],
+                      let firstResult = results.first else {
+                    return // Use defaults
+                }
+                
+                DispatchQueue.main.async {
+                    // Verify we are still on the same image and user hasn't modified points manually
+                    guard self.currentIndex == requestIndex, !self.hasUserModifiedPoints else { return }
+                    self.normTopLeft = firstResult.topLeft
+                    self.normTopRight = firstResult.topRight
+                    self.normBottomLeft = firstResult.bottomLeft
+                    self.normBottomRight = firstResult.bottomRight
+                    self.updateHandlesToMatchNormalizedPoints()
+                }
             }
             
-            DispatchQueue.main.async {
-                // Verify we are still on the same image
-                self.normTopLeft = firstResult.topLeft
-                self.normTopRight = firstResult.topRight
-                self.normBottomLeft = firstResult.bottomLeft
-                self.normBottomRight = firstResult.bottomRight
-                self.updateHandlesToMatchNormalizedPoints()
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            DispatchQueue.global(qos: .userInitiated).async {
+                try? handler.perform([request])
             }
-        }
-        
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        DispatchQueue.global(qos: .userInitiated).async {
-            try? handler.perform([request])
         }
     }
     
@@ -249,12 +299,13 @@ class CunningDocumentCropperViewController: UIViewController {
     
     @objc private func handleDone() {
         guard currentIndex < images.count else { return }
+        guard let currentImage = self.currentNormalizedImage else { return }
         
         // Show spinner / block buttons to prevent double-tap
         cancelButton.isEnabled = false
         doneButton.isEnabled = false
-        
-        let currentImage = images[currentIndex]
+        rotateButton.isEnabled = false
+        activityIndicator.startAnimating()
         
         // Crop the current image on a background thread
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -271,6 +322,8 @@ class CunningDocumentCropperViewController: UIViewController {
             DispatchQueue.main.async {
                 self.cancelButton.isEnabled = true
                 self.doneButton.isEnabled = true
+                self.rotateButton.isEnabled = true
+                self.activityIndicator.stopAnimating()
                 
                 if let cropped = cropped {
                     self.croppedImages.append(cropped)
@@ -289,11 +342,26 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    @objc private func handleRotate() {
+        guard currentIndex < images.count else { return }
+        guard let currentImage = self.currentNormalizedImage else { return }
+        
+        if let rotated = currentImage.rotated90Clockwise() {
+            self.images[currentIndex] = rotated
+            self.currentNormalizedImage = rotated
+            self.imageView.image = rotated
+            
+            // Reset flags to force handle calculation on rotated dimensions
+            hasSetupPoints = false
+            view.setNeedsLayout()
+        }
+    }
+    
     private func cropImage(image: UIImage, topLeft: CGPoint, topRight: CGPoint, bottomLeft: CGPoint, bottomRight: CGPoint) -> UIImage? {
         guard let ciImage = CIImage(image: image) else { return nil }
         
-        let w = image.size.width
-        let h = image.size.height
+        let w = ciImage.extent.width
+        let h = ciImage.extent.height
         
         let tl = CIVector(x: topLeft.x * w, y: topLeft.y * h)
         let tr = CIVector(x: topRight.x * w, y: topRight.y * h)
@@ -309,8 +377,7 @@ class CunningDocumentCropperViewController: UIViewController {
         
         guard let outputImage = filter.outputImage else { return nil }
         
-        let context = CIContext(options: nil)
-        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else { return nil }
+        guard let cgImage = self.ciContext.createCGImage(outputImage, from: outputImage.extent) else { return nil }
         
         return UIImage(cgImage: cgImage)
     }
@@ -344,7 +411,7 @@ class CroppingOverlayView: UIView {
     
     private func setupHandles() {
         for i in 0..<4 {
-            let handle = UIView()
+            let handle = UIView(frame: CGRect(x: 0, y: 0, width: handleSize, height: handleSize))
             handle.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
             handle.layer.cornerRadius = handleSize / 2
             handle.layer.borderWidth = 3
@@ -440,11 +507,25 @@ extension UIImage {
     func fixedOrientation() -> UIImage {
         if imageOrientation == .up { return self }
         
-        UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        draw(in: CGRect(origin: .zero, size: size))
-        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+    
+    func rotated90Clockwise() -> UIImage? {
+        let newSize = CGSize(width: size.height, height: size.width)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
         
-        return normalizedImage ?? self
+        return renderer.image { context in
+            let cgContext = context.cgContext
+            
+            // Move origin to the center and rotate
+            cgContext.translateBy(x: newSize.width / 2, y: newSize.height / 2)
+            cgContext.rotate(by: .pi / 2)
+            
+            // Draw the image centered
+            self.draw(in: CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height))
+        }
     }
 }
