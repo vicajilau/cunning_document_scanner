@@ -25,62 +25,41 @@ import biz.cunning.cunning_document_scanner.fallback.utils.FileUtil
 import biz.cunning.cunning_document_scanner.fallback.utils.ImageUtil
 import java.io.File
 import android.content.pm.PackageManager
-/**
- * This class contains the main document scanner code. It opens the camera, lets the user
- * take a photo of a document (homework paper, business card, etc.), detects document corners,
- * allows user to make adjustments to the detected corners, depending on options, and saves
- * the cropped document. It allows the user to do this for 1 or more documents.
- *
- * @constructor creates document scanner activity
- */
+
+/// This class contains the main document scanner code. It opens the camera, lets the user
+/// take a photo of a document (homework paper, business card, etc.), detects document corners,
+/// allows user to make adjustments to the detected corners, depending on options, and saves
+/// the cropped document. It allows the user to do this for 1 or more documents.
 class DocumentScannerActivity : AppCompatActivity() {
-    /**
-     * @property maxNumDocuments maximum number of documents a user can scan at a time
-     */
+    
+    /// Maximum number of documents a user can scan at a time.
     private var maxNumDocuments = DefaultSetting.MAX_NUM_DOCUMENTS
 
-    /**
-     * @property croppedImageQuality the 0 - 100 quality of the cropped image
-     */
+    /// The 0 - 100 quality of the cropped image.
     private var croppedImageQuality = DefaultSetting.CROPPED_IMAGE_QUALITY
 
-    /**
-     * @property cropperOffsetWhenCornersNotFound if we can't find document corners, we set
-     * corners to image size with a slight margin
-     */
+    /// Default offset margin used when document corners are not detected.
     private val cropperOffsetWhenCornersNotFound = 100.0
 
-    /**
-     * @property document This is the current document. Initially it's null. Once we capture
-     * the photo, and find the corners we update document.
-     */
+    /// Current document being processed. Set once a photo is taken and corners are resolved.
     private var document: Document? = null
 
-    /**
-     * @property documents a list of documents (original photo file path, original photo
-     * dimensions and 4 corner points)
-     */
+    /// List of scanned/cropped documents containing original paths, dimensions, and corners.
     private val documents = mutableListOf<Document>()
 
-    /**
-     * @property cameraUtil gets called with photo file path once user takes photo, or
-     * exits camera
-     */
+    /// Camera utilities callback delegate to handle camera capture success or cancel events.
     private val cameraUtil = CameraUtil(
         this,
         onPhotoCaptureSuccess = {
-            // user takes photo
             originalPhotoPath ->
 
-            // if maxNumDocuments is 3 and this is the 3rd photo, hide the new photo button since
-            // we reach the allowed limit
+            // Hide the add-new-photo button if the documents count reaches max limit minus one
             if (documents.size == maxNumDocuments - 1) {
                 val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
                 newPhotoButton.isClickable = false
                 newPhotoButton.visibility = View.INVISIBLE
             }
 
-            // get bitmap from photo file path
             val photo: Bitmap? = try {
                 ImageUtil().getImageFromFilePath(originalPhotoPath)
             } catch (exception: Exception) {
@@ -93,28 +72,20 @@ class DocumentScannerActivity : AppCompatActivity() {
                 return@CameraUtil
             }
 
-            // get default corners for cropping
             detectCorners(photo) { corners ->
                 document = Document(originalPhotoPath, photo.width, photo.height, corners)
 
-                // user is allowed to move corners to make corrections
                 try {
-                    // set preview image height based off of photo dimensions
                     imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
-
-                    // display original photo, so user can adjust detected corners
                     imageView.setImage(photo)
 
-                    // document corner points are in original image coordinates, so we need to
-                    // scale and move the points to account for blank space (caused by photo and
-                    // photo container having different aspect ratios)
+                    // Map corners from absolute coordinates to preview bounds coordinates
                     val cornersInImagePreviewCoordinates = corners
                         .mapOriginalToPreviewImageCoordinates(
                             imageView.imagePreviewBounds,
                             imageView.imagePreviewBounds.height() / photo.height
                         )
 
-                    // display cropper, and allow user to move corners
                     imageView.setCropper(cornersInImagePreviewCoordinates)
                 } catch (exception: Exception) {
                     finishIntentWithError(
@@ -124,36 +95,24 @@ class DocumentScannerActivity : AppCompatActivity() {
             }
         },
         onCancelPhoto = {
-            // user exits camera
-            // complete document scan if this is the first document since we can't go to crop view
-            // until user takes at least 1 photo
             if (documents.isEmpty()) {
                 onClickCancel()
             }
         }
     )
 
-    /**
-     * @property imageView container with original photo and cropper
-     */
+    /// Container view holding the preview image and draggable crop overlay.
     private lateinit var imageView: ImageCropView
 
-    /**
-     * called when activity is created
-     *
-     * @param savedInstanceState persisted data that maintains state
-     */
+    /// Called when the activity is first created. Sets up UI buttons, handles intent extras,
+    /// and resolves whether to load an initial image URI or launch the camera.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Show cropper, accept crop button, add new document button, and
-        // retake photo button. Since we open the camera in a few lines, the user
-        // doesn't see this until they finish taking a photo
         setContentView(R.layout.activity_image_crop)
         imageView = findViewById(R.id.image_view)
 
         try {
-            // validate maxNumDocuments option, and update default if user sets it
             var userSpecifiedMaxImages: Int? = null
             intent.extras?.get(DocumentScannerExtra.EXTRA_MAX_NUM_DOCUMENTS)?.let {
                 if (it.toString().toIntOrNull() == null) {
@@ -165,7 +124,6 @@ class DocumentScannerActivity : AppCompatActivity() {
                 maxNumDocuments = userSpecifiedMaxImages as Int
             }
 
-            // validate croppedImageQuality option, and update value if user sets it
             intent.extras?.get(DocumentScannerExtra.EXTRA_CROPPED_IMAGE_QUALITY)?.let {
                 if (it !is Int || it < 0 || it > 100) {
                     throw Exception(
@@ -182,8 +140,6 @@ class DocumentScannerActivity : AppCompatActivity() {
             return
         }
 
-        // set click event handlers for new document button, accept and crop document button,
-        // and retake document photo button
         val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
         val completeDocumentScanButton: ImageButton = findViewById(
             R.id.complete_document_scan_button
@@ -235,7 +191,6 @@ class DocumentScannerActivity : AppCompatActivity() {
                 finishIntentWithError("error loading image to crop: ${exception.message}")
             }
         } else {
-            // open camera, so user can snap document photo
             try {
                 openCamera()
             } catch (exception: Exception) {
@@ -246,10 +201,12 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
     }
 
+    /// Resolves document corners asynchronously. Defaults to inset bounding box.
     private fun detectCorners(photo: Bitmap, onComplete: (Quad) -> Unit) {
         onComplete(getDefaultCorners(photo))
     }
 
+    /// Computes default fallback corner locations with standard inset offsets.
     private fun getDefaultCorners(photo: Bitmap): Quad {
         return Quad(
             Point(0.0, 0.0).move(
@@ -271,26 +228,15 @@ class DocumentScannerActivity : AppCompatActivity() {
         )
     }
 
-    /**
-     * Set document to null since we're capturing a new document, and open the camera. If the
-     * user captures a photo successfully document gets updated.
-     */
+    /// Resets current document state and launches camera utility intent.
     private fun openCamera() {
         document = null
         cameraUtil.openCamera(documents.size)
     }
 
-    /**
-     * Once user accepts by pressing check button, or by pressing add new document button, add
-     * original photo path and 4 document corners to documents list. If user isn't allowed to
-     * adjust corners, call this automatically.
-     */
+    /// Converts preview coordinates to original image coordinates and adds the document to the list.
     private fun addSelectedCornersAndOriginalPhotoPathToDocuments() {
-        // only add document it's not null (the current document photo capture, and corner
-        // detection are successful)
         document?.let { document ->
-            // convert corners from image preview coordinates to original photo coordinates
-            // (original image is probably bigger than the preview image)
             val cornersInOriginalImageCoordinates = imageView.corners
                 .mapPreviewToOriginalImageCoordinates(
                     imageView.imagePreviewBounds,
@@ -301,54 +247,35 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * This gets called when a user presses the new document button. Store current photo path
-     * with document corners. Then open the camera, so user can take a photo of the next
-     * page or document
-     */
+    /// Callback triggered by new photo button click.
     private fun onClickNew() {
         addSelectedCornersAndOriginalPhotoPathToDocuments()
         openCamera()
     }
 
-    /**
-     * This gets called when a user presses the done button. Store current photo path with
-     * document corners. Then crop document using corners, and return cropped image paths
-     */
+    /// Callback triggered by complete done button click.
     private fun onClickDone() {
         addSelectedCornersAndOriginalPhotoPathToDocuments()
         cropDocumentAndFinishIntent()
     }
 
-    /**
-     * This gets called when a user presses the retake photo button. The user presses this in
-     * case the original document photo isn't good, and they need to take it again.
-     */
+    /// Callback triggered by retake photo button click. Deletes current captured file and opens camera.
     private fun onClickRetake() {
-        // we're going to retake the photo, so delete the one we just took
         document?.let { document -> File(document.originalPhotoFilePath).delete() }
         openCamera()
     }
 
-    /**
-     * This gets called when a user doesn't want to complete the document scan after starting.
-     * For example a user can quit out of the camera before snapping a photo of the document.
-     */
+    /// Callback triggered by cancel click. Cancels activity and returns cancel result code.
     private fun onClickCancel() {
         setResult(Activity.RESULT_CANCELED)
         finish()
     }
 
-    /**
-     * This crops original document photo, saves cropped document photo, deletes original
-     * document photo, and returns cropped document photo file path. It repeats that for
-     * all document photos.
-     */
+    /// Crops the documented pages, deletes temporary files, and returns file paths to parent activity.
     private fun cropDocumentAndFinishIntent() {
         val croppedImageResults = arrayListOf<String>()
         android.util.Log.d("DocumentScannerActivity", "cropDocumentAndFinishIntent starting for ${documents.size} documents")
         for ((pageNumber, document) in documents.withIndex()) {
-            // crop document photo by using corners
             val croppedImage: Bitmap? = try {
                 ImageUtil().crop(
                     document.originalPhotoFilePath,
@@ -366,10 +293,8 @@ class DocumentScannerActivity : AppCompatActivity() {
                 return
             }
 
-            // delete original document photo
             File(document.originalPhotoFilePath).delete()
 
-            // save cropped document photo
             try {
                 val croppedImageFile = FileUtil().createImageFile(this, pageNumber)
                 croppedImage.saveToFile(croppedImageFile, croppedImageQuality)
@@ -384,7 +309,6 @@ class DocumentScannerActivity : AppCompatActivity() {
             }
         }
 
-        // return array of cropped document photo file paths
         android.util.Log.d("DocumentScannerActivity", "Finishing success with cropped results: $croppedImageResults")
         setResult(
             Activity.RESULT_OK,
@@ -393,12 +317,7 @@ class DocumentScannerActivity : AppCompatActivity() {
         finish()
     }
 
-    /**
-     * This ends the document scanner activity, and returns an error message that can be
-     * used to debug error
-     *
-     * @param errorMessage an error message
-     */
+    /// Finishes the activity returning an error message in intent extras.
     private fun finishIntentWithError(errorMessage: String) {
         setResult(
             Activity.RESULT_OK,

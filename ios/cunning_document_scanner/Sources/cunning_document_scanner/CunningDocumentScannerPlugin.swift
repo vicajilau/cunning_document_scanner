@@ -6,11 +6,20 @@ import PDFKit
 import Photos
 import PhotosUI
 
+/// Main iOS plugin class for cunning_document_scanner.
+/// Handles Flutter MethodChannel calls to launch camera or photo gallery scanning flows.
 public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCameraViewControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    
+    /// The Flutter channel result callback pointer to return document paths to Dart/Flutter.
     var resultChannel: FlutterResult?
+    
+    /// The native VNDocumentCameraViewController presenting instance.
     var presentingController: VNDocumentCameraViewController?
+    
+    /// The options passed from the Dart/Flutter side.
     var scannerOptions = CunningScannerOptions()
 
+    /// Resolves the current visible or root UIViewController on the key window.
     var rootViewController: UIViewController? {
         let keyWindow = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
@@ -19,12 +28,14 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         return keyWindow?.rootViewController
     }
 
+    /// Registers the plugin instance with the Flutter registrar.
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "cunning_document_scanner", binaryMessenger: registrar.messenger())
         let instance = CunningDocumentScannerPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
+    /// Handles incoming FlutterMethodCalls. Specifically listens to the "getPictures" method.
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard call.method == "getPictures" else {
             result(FlutterMethodNotImplemented)
@@ -77,6 +88,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         }
     }
 
+    /// Launches the native system document camera (VNDocumentCameraViewController).
     func openCamera(from presentedVC: UIViewController?) {
         if VNDocumentCameraViewController.isSupported {
             presentingController = VNDocumentCameraViewController()
@@ -87,6 +99,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         }
     }
 
+    /// Launches the photo picker (PHPickerViewController on iOS 14+, fallback to UIImagePickerController).
     func openGallery(from presentedVC: UIViewController?) {
         if #available(iOS 14.0, *) {
             var configuration = PHPickerConfiguration()
@@ -104,11 +117,13 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         }
     }
 
+    /// Helper to retrieve the app's documents directory URL.
     func getDocumentsDirectory() -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
     }
 
+    /// Helper to fetch localized string translations for keys, falling back to a default value.
     func getLocalizedOption(_ key: String, defaultValue: String) -> String {
         let mainBundleValue = Bundle.main.localizedString(forKey: key, value: nil, table: nil)
         if mainBundleValue != key {
@@ -133,6 +148,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         return resolvedBundle.localizedString(forKey: key, value: defaultValue, table: nil)
     }
 
+    /// Writes scanned or cropped images to local files (or compiles them to a single PDF) and returns paths to Flutter.
     func processSelectedImages(_ images: [UIImage]) {
         let tempDirPath = getDocumentsDirectory()
         let currentDateTime = Date()
@@ -173,6 +189,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
 
     // MARK: - VNDocumentCameraViewControllerDelegate
 
+    /// Delegate callback for camera scans. Receives pages and processes them directly.
     public func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
         var images: [UIImage] = []
         for i in 0 ..< scan.pageCount {
@@ -182,11 +199,13 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         presentingController?.dismiss(animated: true)
     }
 
+    /// Delegate callback for cancelled camera scans.
     public func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
         resultChannel?(nil)
         presentingController?.dismiss(animated: true)
     }
 
+    /// Delegate callback for camera scan failures.
     public func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
         resultChannel?(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
         presentingController?.dismiss(animated: true)
@@ -194,6 +213,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
 
     // MARK: - UIImagePickerControllerDelegate
 
+    /// Delegate callback for picking media (legacy UIImagePickerController).
     public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         guard let image = info[.originalImage] as? UIImage else {
             picker.dismiss(animated: true) {
@@ -214,6 +234,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         }
     }
 
+    /// Delegate callback for legacy picker cancellations.
     public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true) {
             self.resultChannel?(nil)
@@ -225,6 +246,8 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
 
 @available(iOS 14.0, *)
 extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
+    
+    /// Delegate callback for picking media with the modern PHPickerViewController.
     public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         if results.isEmpty {
             picker.dismiss(animated: true) {
@@ -278,12 +301,15 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
 // MARK: - CunningDocumentCropperDelegate
 
 extension CunningDocumentScannerPlugin: CunningDocumentCropperDelegate {
+    
+    /// Handles completion of cropping flow. Passes cropped results to the file output processor.
     func didFinishCropping(croppedImages: [UIImage]) {
         rootViewController?.dismiss(animated: true) {
             self.processSelectedImages(croppedImages)
         }
     }
     
+    /// Handles cancel/abort events from the cropper view controller.
     func didCancelCropping() {
         rootViewController?.dismiss(animated: true) {
             self.resultChannel?(nil)

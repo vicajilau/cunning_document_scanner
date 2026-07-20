@@ -26,30 +26,41 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 
-
-/** CunningDocumentScannerPlugin */
+/// Main Android plugin class for cunning_document_scanner.
+/// Handles Flutter MethodChannel calls, Google Play Services (GMS) document scanner triggers,
+/// photo picking from gallery, and fallback cropping flows.
 class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
+    
+    /// Delegate to handle activity result callbacks.
     private var delegate: PluginRegistry.ActivityResultListener? = null
+    
+    /// Binding associated with the current activity.
     private var binding: ActivityPluginBinding? = null
+    
+    /// The pending Flutter Result object to return scanned images paths back.
     private var pendingResult: Result? = null
+    
+    /// Flag to check if scanned document must be exported as PDF.
     private var asPdf: Boolean = false
+    
+    /// The current Android activity instance.
     private lateinit var activity: Activity
+    
+    /// Request code constants for starting activities.
     private val START_DOCUMENT_ACTIVITY: Int = 0x362738
     private val START_DOCUMENT_FB_ACTIVITY: Int = 0x362737
     private val START_GALLERY_PICKER: Int = 0x362736
 
-
-    /// The MethodChannel that will the communication between Flutter and native Android
-    ///
-    /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-    /// when the Flutter Engine is detached from the Activity
+    /// The MethodChannel that handles communication between Flutter and native Android.
     private lateinit var channel: MethodChannel
 
+    /// Called when the plugin is attached to the Flutter Engine.
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "cunning_document_scanner")
         channel.setMethodCallHandler(this)
     }
 
+    /// Handles MethodChannel method calls from Dart/Flutter.
     override fun onMethodCall(call: MethodCall, result: Result) {
         if (call.method == "getPictures") {
             val noOfPages = call.argument<Int>("noOfPages") ?: 50
@@ -72,17 +83,18 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
     }
 
-
+    /// Called when the plugin is detached from the Flutter Engine.
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
     }
 
+    /// Called when the plugin is attached to the host Activity.
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         this.activity = binding.activity
-
         addActivityResultListener(binding)
     }
 
+    /// Starts the Android system gallery image picker intent.
     private fun startGalleryPicker() {
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "image/*"
@@ -95,6 +107,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
     }
 
+    /// Registers the ActivityResultListener to handle image selection and scanning result intents.
     private fun addActivityResultListener(binding: ActivityPluginBinding) {
         this.binding = binding
         if (this.delegate == null) {
@@ -145,13 +158,11 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                     android.util.Log.d("CunningScannerPlugin", "Handling START_DOCUMENT_ACTIVITY (GMS)")
                     when (resultCode) {
                         Activity.RESULT_OK -> {
-                            // check for errors
                             val error = data?.extras?.getString("error")
                             android.util.Log.d("CunningScannerPlugin", "GMS error extra: $error")
                             if (error != null) {
                                 pendingResult?.error("ERROR", "error - $error", null)
                             } else {
-                                 // get an array with scanned document file paths
                                  val scanningResult = data?.extras?.let { extras ->
                                      androidx.core.os.BundleCompat.getParcelable(
                                          extras,
@@ -173,7 +184,6 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                                         it.imageUri.toString().removePrefix("file://")
                                     }?.toList()
                                     android.util.Log.d("CunningScannerPlugin", "GMS success response: $successResponse")
-                                    // trigger the success event handler with an array of cropped images
                                     pendingResult?.success(successResponse)
                                 }
                             }
@@ -182,7 +192,6 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
 
                         Activity.RESULT_CANCELED -> {
                             android.util.Log.d("CunningScannerPlugin", "GMS scanner cancelled")
-                            // user closed camera
                             pendingResult?.success(emptyList<String>())
                             handled = true
                         }
@@ -192,13 +201,11 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                     android.util.Log.d("CunningScannerPlugin", "Handling START_DOCUMENT_FB_ACTIVITY (Fallback/HMS)")
                     when (resultCode) {
                         Activity.RESULT_OK -> {
-                            // check for errors
                             val error = data?.extras?.getString("error")
                             android.util.Log.d("CunningScannerPlugin", "Cropper error extra: $error")
                             if (error != null) {
                                 pendingResult?.error("ERROR", "error - $error", null)
                             } else {
-                                // get an array with scanned document file paths
                                 val croppedImageResults =
                                     data?.getStringArrayListExtra("croppedImageResults")?.toList()
                                         ?: let {
@@ -209,8 +216,6 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                                         }
                                 android.util.Log.d("CunningScannerPlugin", "Cropped image results: $croppedImageResults")
 
-                                // return a list of file paths
-                                // removing file uri prefix as Flutter file will have problems with it
                                 val successResponse = croppedImageResults.map {
                                     it.removePrefix("file://")
                                 }.toList()
@@ -225,7 +230,6 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                                         pendingResult?.error("ERROR", "Failed to create PDF from fallback scanner: ${e.message}", null)
                                     }
                                 } else {
-                                    // trigger the success event handler with an array of cropped images
                                     pendingResult?.success(successResponse)
                                 }
                             }
@@ -234,7 +238,6 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
 
                         Activity.RESULT_CANCELED -> {
                             android.util.Log.d("CunningScannerPlugin", "Cropper cancelled")
-                            // user closed camera
                             pendingResult?.success(emptyList<String>())
                             handled = true
                         }
@@ -255,10 +258,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         binding.addActivityResultListener(delegate!!)
     }
 
-
-    /**
-     * create intent to launch document scanner and set custom options
-     */
+    /// Creates an Intent to launch the fallback document scanner activity.
     private fun createDocumentScanIntent(noOfPages: Int): Intent {
         val documentScanIntent = Intent(activity, DocumentScannerActivity::class.java)
 
@@ -270,10 +270,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         return documentScanIntent
     }
 
-
-    /**
-     * add document scanner result handler and launch the document scanner
-     */
+    /// Resolves GmsDocumentScannerOptions modes.
     private fun resolveScannerMode(mode: String?): Int {
         return when (mode) {
             "base" -> SCANNER_MODE_BASE
@@ -283,6 +280,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
     }
 
+    /// Configures GmsDocumentScannerOptions and launches GMS Document Scanner activity.
     private fun startScan(noOfPages: Int, isGalleryImportAllowed: Boolean, scannerMode: Int, asPdf: Boolean) {
         val optionsBuilder = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(isGalleryImportAllowed)
@@ -300,7 +298,6 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
             val scanner = GmsDocumentScanning.getClient(options)
             scanner.getStartScanIntent(activity).addOnSuccessListener {
                 try {
-                    // Use a custom request code for onActivityResult identification
                     activity.startIntentSenderForResult(it, START_DOCUMENT_ACTIVITY, null, 0, 0, 0)
                 } catch (_: IntentSender.SendIntentException) {
                     pendingResult?.error("ERROR", "Failed to start document scanner", null)
@@ -313,6 +310,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
     }
 
+    /// Opens the fallback manual cropping scanner activity if GMS is unavailable.
     private fun openFallbackScanner(noOfPages: Int) {
         val intent = createDocumentScanIntent(noOfPages)
         try {
@@ -327,9 +325,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         }
     }
 
-    override fun onDetachedFromActivityForConfigChanges() {
-
-    }
+    override fun onDetachedFromActivityForConfigChanges() {}
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         addActivityResultListener(binding)
@@ -339,6 +335,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         removeActivityResultListener()
     }
 
+    /// Removes ActivityResultListener callback registrations.
     private fun removeActivityResultListener() {
         this.delegate?.let { this.binding?.removeActivityResultListener(it) }
     }

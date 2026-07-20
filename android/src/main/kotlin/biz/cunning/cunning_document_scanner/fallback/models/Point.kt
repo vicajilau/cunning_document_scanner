@@ -1,9 +1,14 @@
 package biz.cunning.cunning_document_scanner.fallback.models
 
-
-//javadoc:Point_
+/// Represents a 2D point coordinate using Double precision values.
+///
+/// @param x The horizontal coordinate value.
+/// @param y The vertical coordinate value.
 class Point @JvmOverloads constructor(x: Double = 0.0, y: Double = 0.0) {
+    /// Horizontal coordinate.
     var x = 0.0
+    
+    /// Vertical coordinate.
     var y = 0.0
 
     init {
@@ -11,6 +16,8 @@ class Point @JvmOverloads constructor(x: Double = 0.0, y: Double = 0.0) {
         this.y = y
     }
 
+    /// Sets the point coordinates from a DoubleArray.
+    /// - vals: DoubleArray containing [x, y] coordinates.
     fun set(vals: DoubleArray?) {
         if (vals != null) {
             x = if (vals.size > 0) vals[0] else 0.0
@@ -20,7 +27,6 @@ class Point @JvmOverloads constructor(x: Double = 0.0, y: Double = 0.0) {
             y = 0.0
         }
     }
-
 
     override fun hashCode(): Int {
         val prime = 31

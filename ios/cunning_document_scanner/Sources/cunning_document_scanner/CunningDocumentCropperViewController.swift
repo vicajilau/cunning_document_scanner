@@ -2,32 +2,66 @@ import UIKit
 import Vision
 import CoreImage
 
+/// Delegate protocol for CunningDocumentCropperViewController to notify its parent of cropping completion or cancellation.
 protocol CunningDocumentCropperDelegate: AnyObject {
+    /// Called when the user has successfully finished cropping all selected images.
+    /// - Parameter croppedImages: An array of final cropped and perspective-corrected images.
     func didFinishCropping(croppedImages: [UIImage])
+    
+    /// Called when the user cancels the cropping flow.
     func didCancelCropping()
 }
 
+/// View controller that provides an interactive multi-page document cropping interface.
+/// It displays selected images and overlays draggable handles to correct perspective skewing.
 class CunningDocumentCropperViewController: UIViewController {
+    
+    /// The delegate to handle cropping lifecycle events.
     weak var delegate: CunningDocumentCropperDelegate?
     
+    /// The array of original images to be cropped.
     private var images: [UIImage] = []
+    
+    /// The array of output cropped images populated during the flow.
     private var croppedImages: [UIImage] = []
+    
+    /// The index of the current page being cropped.
     private var currentIndex = 0
     
+    /// The UIImageView to display the page image.
     private let imageView = UIImageView()
+    
+    /// The overlay canvas containing handles and drawing the crop boundaries.
     private let overlayView = CroppingOverlayView()
+    
+    /// The top navigation bar view.
     private let topBar = UIView()
+    
+    /// The bottom control bar view.
     private let bottomBar = UIView()
     
+    /// The label showing page progress (e.g. "Crop Page 1 of 3").
     private let titleLabel = UILabel()
+    
+    /// The button to dismiss the cropping view.
     private let cancelButton = UIButton(type: .system)
+    
+    /// The button to advance to the next page or finish.
     private let doneButton = UIButton(type: .system)
+    
+    /// The button to rotate the current page clockwise.
     private let rotateButton = UIButton(type: .system)
+    
+    /// The back button to return to the previous page.
     private let backButton = UIButton(type: .system)
     
+    /// The activity spinner shown during background image loading/processing.
     private let activityIndicator = UIActivityIndicatorView(style: .large)
+    
+    /// The CoreImage context used to execute perspective correction filters.
     private let ciContext = CIContext(options: nil)
     
+    /// A structure representing normalized corner coordinates of a page (0.0 to 1.0, bottom-left origin).
     private struct PageCoordinates {
         let topLeft: CGPoint
         let topRight: CGPoint
@@ -35,11 +69,19 @@ class CunningDocumentCropperViewController: UIViewController {
         let bottomRight: CGPoint
     }
     
+    /// A list mapping page indexes to their last saved/detected cropping coordinates.
     private var savedCoordinates: [PageCoordinates?] = []
     
+    /// Indicates whether the initial corner points have been set up for the current page.
     private var hasSetupPoints = false
+    
+    /// Indicates whether the user has interacted with the corner handles.
     private var hasUserModifiedPoints = false
+    
+    /// The current image under review with fixed orientation.
     private var currentNormalizedImage: UIImage?
+    
+    /// A closure used to retrieve localized option strings from the main plugin.
     private let localize: (String, String) -> String
     
     // Normalized coordinates (origin at bottom-left)
@@ -48,6 +90,10 @@ class CunningDocumentCropperViewController: UIViewController {
     private var normBottomLeft = CGPoint(x: 0.15, y: 0.15)
     private var normBottomRight = CGPoint(x: 0.85, y: 0.15)
     
+    /// Initializes a new cropper view controller with a list of images and a localizer.
+    /// - Parameters:
+    ///   - images: The list of raw images to crop.
+    ///   - localize: A closure to retrieve localized translation strings.
     init(images: [UIImage], localize: @escaping (String, String) -> String) {
         self.localize = localize
         self.images = images
@@ -84,6 +130,7 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    /// Sets up and configures subviews and actions.
     private func setupViews() {
         // Image View configuration
         imageView.contentMode = .scaleAspectFit
@@ -155,6 +202,7 @@ class CunningDocumentCropperViewController: UIViewController {
         loadCurrentImage()
     }
     
+    /// Activates Auto Layout constraints for the interface components.
     private func setupConstraints() {
         imageView.translatesAutoresizingMaskIntoConstraints = false
         overlayView.translatesAutoresizingMaskIntoConstraints = false
@@ -224,6 +272,8 @@ class CunningDocumentCropperViewController: UIViewController {
         ])
     }
     
+    /// Loads and processes the image corresponding to the current index.
+    /// Normalizes orientation on a global background thread prior to displaying.
     private func loadCurrentImage() {
         guard currentIndex < images.count else { return }
         
@@ -302,6 +352,8 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    /// Detects document boundary coordinates asynchronously using Vision Framework (iOS 15.0+),
+    /// defaulting to a standard inset box if detection fails or is unavailable.
     private func detectAndSetupPoints() {
         guard currentIndex < images.count else { return }
         guard let currentImage = self.currentNormalizedImage else { return }
@@ -344,6 +396,7 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    /// Updates the overlay view's handle positions to match current normalized coordinate variables.
     private func updateHandlesToMatchNormalizedPoints() {
         let frame = getContentFrame()
         overlayView.topLeft = overlayView.viewPoint(fromNormalized: normTopLeft, contentFrame: frame)
@@ -353,6 +406,7 @@ class CunningDocumentCropperViewController: UIViewController {
         overlayView.updateHandlePositions()
     }
     
+    /// Calculates the size and origin of the aspect-fit image as it appears inside the UIImageView.
     private func getContentFrame() -> CGRect {
         guard let image = imageView.image else { return .zero }
         let imgSize = image.size
@@ -374,6 +428,7 @@ class CunningDocumentCropperViewController: UIViewController {
         return CGRect(x: x, y: y, width: contentW, height: contentH)
     }
     
+    /// Responds to cancel actions, prompting a discard confirmation alert if modifications are present.
     @objc private func handleCancel() {
         let hasChanges = hasUserModifiedPoints || currentIndex > 0
         if hasChanges {
@@ -393,6 +448,7 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    /// Confirms selection of current page crop, performs perspective correction, and advances progress.
     @objc private func handleDone() {
         guard currentIndex < images.count else { return }
         guard let currentImage = self.currentNormalizedImage else { return }
@@ -458,6 +514,7 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    /// Rotates the image metadata and corner crop coordinates 90 degrees clockwise instantly.
     @objc private func handleRotate() {
         guard currentIndex < images.count else { return }
         guard let currentImage = self.currentNormalizedImage else { return }
@@ -497,6 +554,7 @@ class CunningDocumentCropperViewController: UIViewController {
         }
     }
     
+    /// Navigates back to the previous page in the list.
     @objc private func handleBack() {
         guard currentIndex > 0 else { return }
         
@@ -509,6 +567,7 @@ class CunningDocumentCropperViewController: UIViewController {
         loadCurrentImage()
     }
     
+    /// Applies CIPerspectiveCorrection to un-skew and crop the document area based on specified corner points.
     private func cropImage(image: UIImage, topLeft: CGPoint, topRight: CGPoint, bottomLeft: CGPoint, bottomRight: CGPoint) -> UIImage? {
         guard let rawCIImage = CIImage(image: image) else { return nil }
         let ciImage = rawCIImage.oriented(CGImagePropertyOrientation(image.imageOrientation))
@@ -535,317 +594,5 @@ class CunningDocumentCropperViewController: UIViewController {
         guard let cgImage = self.ciContext.createCGImage(outputImage, from: outputImage.extent) else { return nil }
         
         return UIImage(cgImage: cgImage)
-    }
-}
-
-// MARK: - CroppingOverlayView
-
-class CroppingOverlayView: UIView {
-    var topLeft = CGPoint.zero
-    var topRight = CGPoint.zero
-    var bottomLeft = CGPoint.zero
-    var bottomRight = CGPoint.zero
-    
-    var contentFrame = CGRect.zero
-    var onPointsChanged: (() -> Void)?
-    
-    private var handles: [UIView] = []
-    private let handleSize: CGFloat = 34
-    private var magnifierView: MagnifierView?
-    private var activeHandle: UIView?
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .clear
-        setupHandles()
-    }
-    
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        backgroundColor = .clear
-        setupHandles()
-    }
-    
-    private func setupHandles() {
-        for i in 0..<4 {
-            let handle = UIView(frame: CGRect(x: 0, y: 0, width: handleSize, height: handleSize))
-            handle.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
-            handle.layer.cornerRadius = handleSize / 2
-            handle.layer.borderWidth = 3
-            handle.layer.borderColor = UIColor.white.cgColor
-            handle.tag = i
-            
-            let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
-            handle.addGestureRecognizer(pan)
-            addSubview(handle)
-            handles.append(handle)
-        }
-    }
-    
-    func updateHandlePositions() {
-        guard handles.count == 4 else { return }
-        handles[0].center = topLeft
-        handles[1].center = topRight
-        handles[2].center = bottomLeft
-        handles[3].center = bottomRight
-        setNeedsDisplay()
-    }
-    
-    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
-        guard let handle = gesture.view else { return }
-        
-        if let active = activeHandle, active !== handle {
-            return
-        }
-        
-        let translation = gesture.translation(in: self)
-        var newCenter = CGPoint(x: handle.center.x + translation.x, y: handle.center.y + translation.y)
-        
-        // Restrict drag inside the image content frame (if set)
-        if contentFrame != .zero {
-            newCenter.x = max(contentFrame.minX, min(contentFrame.maxX, newCenter.x))
-            newCenter.y = max(contentFrame.minY, min(contentFrame.maxY, newCenter.y))
-        } else {
-            newCenter.x = max(0, min(bounds.width, newCenter.x))
-            newCenter.y = max(0, min(bounds.height, newCenter.y))
-        }
-        
-        handle.center = newCenter
-        gesture.setTranslation(.zero, in: self)
-        
-        switch handle.tag {
-        case 0: topLeft = newCenter
-        case 1: topRight = newCenter
-        case 2: bottomLeft = newCenter
-        case 3: bottomRight = newCenter
-        default: break
-        }
-        
-        onPointsChanged?()
-        setNeedsDisplay()
-        
-        // Magnifier View updates
-        let touchPointInSelf = newCenter
-        guard let parentView = self.superview else { return }
-        let touchPointInParent = self.convert(touchPointInSelf, to: parentView)
-        
-        switch gesture.state {
-        case .began:
-            activeHandle = handle
-            let magnifier = MagnifierView(frame: CGRect(x: 0, y: 0, width: 90, height: 90))
-            
-            // Temporarily hide the overlay view so it isn't captured in the zoom lens background
-            self.isHidden = true
-            
-            // Snapshot the parent view once
-            let renderer = UIGraphicsImageRenderer(size: parentView.bounds.size)
-            let snapshot = renderer.image { ctx in
-                parentView.layer.render(in: ctx.cgContext)
-            }
-            
-            // Restore visibility
-            self.isHidden = false
-            
-            magnifier.snapshotImage = snapshot
-            parentView.addSubview(magnifier)
-            self.magnifierView = magnifier
-            updateMagnifier(touchPoint: touchPointInParent, touchPointInSelf: touchPointInParent)
-        case .changed:
-            updateMagnifier(touchPoint: touchPointInParent, touchPointInSelf: touchPointInParent)
-        case .ended, .cancelled:
-            magnifierView?.removeFromSuperview()
-            magnifierView = nil
-            activeHandle = nil
-        default:
-            break
-        }
-    }
-    
-    private func updateMagnifier(touchPoint: CGPoint, touchPointInSelf: CGPoint) {
-        guard let magnifier = magnifierView, let parentView = self.superview else { return }
-        magnifier.touchPoint = touchPointInSelf
-        
-        let halfHeight = magnifier.bounds.height / 2
-        
-        // Position the magnifier offset above the touch point.
-        // If the touch point is too close to the top, position it below the touch point to avoid going off-screen or being covered by the finger.
-        let isNearTop = (touchPoint.y - 75) < halfHeight
-        let yOffset: CGFloat = isNearTop ? 75 : -75
-        var magnifierCenter = CGPoint(x: touchPoint.x, y: touchPoint.y + yOffset)
-        
-        // Keep the magnifier within the parent view bounds
-        let halfWidth = magnifier.bounds.width / 2
-        
-        magnifierCenter.x = max(halfWidth, min(parentView.bounds.width - halfWidth, magnifierCenter.x))
-        magnifierCenter.y = max(halfHeight, min(parentView.bounds.height - halfHeight, magnifierCenter.y))
-        
-        magnifier.center = magnifierCenter
-    }
-    
-    override func draw(_ rect: CGRect) {
-        guard topLeft != .zero || topRight != .zero || bottomLeft != .zero || bottomRight != .zero else {
-            return
-        }
-        
-        let path = UIBezierPath()
-        path.move(to: topLeft)
-        path.addLine(to: topRight)
-        path.addLine(to: bottomRight)
-        path.addLine(to: bottomLeft)
-        path.close()
-        
-        // Draw fill area
-        UIColor.systemBlue.withAlphaComponent(0.25).setFill()
-        path.fill()
-        
-        // Draw crop frame lines
-        UIColor.systemBlue.setStroke()
-        path.lineWidth = 3
-        path.stroke()
-    }
-    
-    // Convert points coordinate mappings
-    func viewPoint(fromNormalized point: CGPoint, contentFrame: CGRect) -> CGPoint {
-        guard contentFrame.width > 0 && contentFrame.height > 0 else { return .zero }
-        let vx = contentFrame.origin.x + point.x * contentFrame.size.width
-        let vy = contentFrame.origin.y + (1.0 - point.y) * contentFrame.size.height
-        return CGPoint(x: vx, y: vy)
-    }
-    
-    func normalizedPoint(fromView point: CGPoint, contentFrame: CGRect) -> CGPoint {
-        guard contentFrame.width > 0 && contentFrame.height > 0 else { return .zero }
-        let px = (point.x - contentFrame.origin.x) / contentFrame.size.width
-        let py = 1.0 - (point.y - contentFrame.origin.y) / contentFrame.size.height
-        return CGPoint(x: max(0.0, min(1.0, px)), y: max(0.0, min(1.0, py)))
-    }
-}
-
-// MARK: - UIImage Extension (Fix Orientation)
-
-extension UIImage {
-    func fixedOrientation() -> UIImage {
-        if imageOrientation == .up { return self }
-        
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = self.scale
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in
-            self.draw(in: CGRect(origin: .zero, size: size))
-        }
-    }
-    
-    func rotated90Clockwise() -> UIImage? {
-        let newOrientation: UIImage.Orientation
-        switch self.imageOrientation {
-        case .up: newOrientation = .right
-        case .right: newOrientation = .down
-        case .down: newOrientation = .left
-        case .left: newOrientation = .up
-        case .upMirrored: newOrientation = .rightMirrored
-        case .rightMirrored: newOrientation = .downMirrored
-        case .downMirrored: newOrientation = .leftMirrored
-        case .leftMirrored: newOrientation = .upMirrored
-        @unknown default: newOrientation = .right
-        }
-        
-        if let cgImage = self.cgImage {
-            return UIImage(cgImage: cgImage, scale: self.scale, orientation: newOrientation)
-        } else if let ciImage = self.ciImage {
-            return UIImage(ciImage: ciImage, scale: self.scale, orientation: newOrientation)
-        }
-        return nil
-    }
-    
-    func downscaled(toMaxDimension maxDimension: CGFloat) -> UIImage {
-        let size = self.size
-        let maxDim = max(size.width, size.height)
-        if maxDim <= maxDimension {
-            return self
-        }
-        
-        let scale = maxDimension / maxDim
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1.0 // Use 1.0 scale to keep exact pixel dimensions
-        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
-        
-        return renderer.image { _ in
-            self.draw(in: CGRect(origin: .zero, size: newSize))
-        }
-    }
-}
-
-// MARK: - MagnifierView
-
-class MagnifierView: UIView {
-    var snapshotImage: UIImage?
-    var touchPoint: CGPoint = .zero {
-        didSet {
-            setNeedsDisplay()
-        }
-    }
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .clear
-        layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.5
-        layer.shadowOffset = CGSize(width: 0, height: 3)
-        layer.shadowRadius = 4
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    override func draw(_ rect: CGRect) {
-        guard let context = UIGraphicsGetCurrentContext(), let image = snapshotImage else { return }
-        
-        // Circular clipping
-        let path = UIBezierPath(ovalIn: rect)
-        path.addClip()
-        
-        context.translateBy(x: rect.width / 2, y: rect.height / 2)
-        context.scaleBy(x: 1.5, y: 1.5)
-        context.translateBy(x: -touchPoint.x, y: -touchPoint.y)
-        
-        image.draw(at: .zero)
-        
-        // Draw border ring
-        UIColor.white.setStroke()
-        let borderPath = UIBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5))
-        borderPath.lineWidth = 3
-        borderPath.stroke()
-        
-        // Draw crosshair in the center
-        UIColor.systemBlue.setStroke()
-        let crosshair = UIBezierPath()
-        let midX = rect.midX
-        let midY = rect.midY
-        crosshair.move(to: CGPoint(x: midX - 8, y: midY))
-        crosshair.addLine(to: CGPoint(x: midX + 8, y: midY))
-        crosshair.move(to: CGPoint(x: midX, y: midY - 8))
-        crosshair.addLine(to: CGPoint(x: midX, y: midY + 8))
-        crosshair.lineWidth = 1.5
-        crosshair.stroke()
-    }
-}
-
-// MARK: - CGImagePropertyOrientation Mapping Helper
-
-extension CGImagePropertyOrientation {
-    init(_ uiOrientation: UIImage.Orientation) {
-        switch uiOrientation {
-        case .up: self = .up
-        case .upMirrored: self = .upMirrored
-        case .down: self = .down
-        case .downMirrored: self = .downMirrored
-        case .leftMirrored: self = .leftMirrored
-        case .right: self = .right
-        case .rightMirrored: self = .rightMirrored
-        case .left: self = .left
-        @unknown default: self = .up
-        }
     }
 }
