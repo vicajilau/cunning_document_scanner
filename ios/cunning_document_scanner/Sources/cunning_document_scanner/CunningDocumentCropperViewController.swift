@@ -123,8 +123,8 @@ class CunningDocumentCropperViewController: UIViewController {
         let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
         
         cancelButton.setImage(UIImage(systemName: "xmark", withConfiguration: config), for: .normal)
-        cancelButton.tintColor = .black
-        cancelButton.backgroundColor = .white
+        cancelButton.tintColor = .white
+        cancelButton.backgroundColor = UIColor.white.withAlphaComponent(0.15)
         cancelButton.layer.cornerRadius = 22
         cancelButton.clipsToBounds = true
         cancelButton.addTarget(self, action: #selector(handleCancel), for: .touchUpInside)
@@ -147,7 +147,7 @@ class CunningDocumentCropperViewController: UIViewController {
         backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: config), for: .normal)
         backButton.tintColor = .white
         backButton.backgroundColor = UIColor.white.withAlphaComponent(0.15)
-        backButton.layer.cornerRadius = 18
+        backButton.layer.cornerRadius = 22
         backButton.clipsToBounds = true
         backButton.addTarget(self, action: #selector(handleBack), for: .touchUpInside)
         topBar.addSubview(backButton)
@@ -171,8 +171,8 @@ class CunningDocumentCropperViewController: UIViewController {
             // Back Button (Top Bar left)
             backButton.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 15),
             backButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            backButton.widthAnchor.constraint(equalToConstant: 36),
-            backButton.heightAnchor.constraint(equalToConstant: 36),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
             
             // Activity Indicator
             activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -186,6 +186,8 @@ class CunningDocumentCropperViewController: UIViewController {
             
             titleLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: backButton.trailingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: topBar.trailingAnchor, constant: -12),
             
             // Bottom Bar
             bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
@@ -333,7 +335,22 @@ class CunningDocumentCropperViewController: UIViewController {
     }
     
     @objc private func handleCancel() {
-        delegate?.didCancelCropping()
+        let hasChanges = hasUserModifiedPoints || currentIndex > 0
+        if hasChanges {
+            let alertTitle = localize("cunning_document_scanner_discard_title", "Discard changes?")
+            let alertMessage = localize("cunning_document_scanner_discard_message", "Are you sure you want to discard your progress?")
+            let cancelText = localize("cunning_document_scanner_cancel", "Cancel")
+            let discardText = localize("cunning_document_scanner_discard", "Discard")
+            
+            let alert = UIAlertController(title: alertTitle, message: alertMessage, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: cancelText, style: .cancel, handler: nil))
+            alert.addAction(UIAlertAction(title: discardText, style: .destructive, handler: { [weak self] _ in
+                self?.delegate?.didCancelCropping()
+            }))
+            present(alert, animated: true, completion: nil)
+        } else {
+            delegate?.didCancelCropping()
+        }
     }
     
     @objc private func handleDone() {
@@ -460,6 +477,7 @@ class CroppingOverlayView: UIView {
     
     private var handles: [UIView] = []
     private let handleSize: CGFloat = 34
+    private var magnifierView: MagnifierView?
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -525,6 +543,44 @@ class CroppingOverlayView: UIView {
         
         onPointsChanged?()
         setNeedsDisplay()
+        
+        // Magnifier View updates
+        let touchPointInSelf = newCenter
+        guard let parentView = self.superview else { return }
+        let touchPointInParent = self.convert(touchPointInSelf, to: parentView)
+        
+        switch gesture.state {
+        case .began:
+            let magnifier = MagnifierView(frame: CGRect(x: 0, y: 0, width: 90, height: 90))
+            magnifier.viewToMagnify = parentView
+            parentView.addSubview(magnifier)
+            self.magnifierView = magnifier
+            updateMagnifier(touchPoint: touchPointInParent)
+        case .changed:
+            updateMagnifier(touchPoint: touchPointInParent)
+        case .ended, .cancelled:
+            magnifierView?.removeFromSuperview()
+            magnifierView = nil
+        default:
+            break
+        }
+    }
+    
+    private func updateMagnifier(touchPoint: CGPoint) {
+        guard let magnifier = magnifierView, let parentView = self.superview else { return }
+        magnifier.touchPoint = touchPoint
+        
+        // Position the magnifier offset above the touch point
+        var magnifierCenter = CGPoint(x: touchPoint.x, y: touchPoint.y - 75)
+        
+        // Keep the magnifier within the parent view bounds
+        let halfWidth = magnifier.bounds.width / 2
+        let halfHeight = magnifier.bounds.height / 2
+        
+        magnifierCenter.x = max(halfWidth, min(parentView.bounds.width - halfWidth, magnifierCenter.x))
+        magnifierCenter.y = max(halfHeight, min(parentView.bounds.height - halfHeight, magnifierCenter.y))
+        
+        magnifier.center = magnifierCenter
     }
     
     override func draw(_ rect: CGRect) {
@@ -591,5 +647,67 @@ extension UIImage {
             // Draw the image centered
             self.draw(in: CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height))
         }
+    }
+}
+
+// MARK: - MagnifierView
+
+class MagnifierView: UIView {
+    var viewToMagnify: UIView?
+    var touchPoint: CGPoint = .zero {
+        didSet {
+            setNeedsDisplay()
+        }
+    }
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.5
+        layer.shadowOffset = CGSize(width: 0, height: 3)
+        layer.shadowRadius = 4
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext(), let view = viewToMagnify else { return }
+        
+        // Circular clipping
+        let path = UIBezierPath(ovalIn: rect)
+        path.addClip()
+        
+        // Temporarily hide magnifier view to avoid rendering itself
+        let wasHidden = self.isHidden
+        self.isHidden = true
+        
+        context.translateBy(x: rect.width / 2, y: rect.height / 2)
+        context.scaleBy(x: 1.5, y: 1.5)
+        context.translateBy(x: -touchPoint.x, y: -touchPoint.y)
+        
+        view.layer.render(in: context)
+        
+        self.isHidden = wasHidden
+        
+        // Draw border ring
+        UIColor.white.setStroke()
+        let borderPath = UIBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5))
+        borderPath.lineWidth = 3
+        borderPath.stroke()
+        
+        // Draw crosshair in the center
+        UIColor.systemBlue.setStroke()
+        let crosshair = UIBezierPath()
+        let midX = rect.midX
+        let midY = rect.midY
+        crosshair.move(to: CGPoint(x: midX - 8, y: midY))
+        crosshair.addLine(to: CGPoint(x: midX + 8, y: midY))
+        crosshair.move(to: CGPoint(x: midX, y: midY - 8))
+        crosshair.addLine(to: CGPoint(x: midX, y: midY + 8))
+        crosshair.lineWidth = 1.5
+        crosshair.stroke()
     }
 }

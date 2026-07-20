@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Knihovna fotografií";
 "cunning_document_scanner_cancel" = "Zrušit";
 "cunning_document_scanner_crop_title" = "Oříznout stránku %1$d z %2$d";
+"cunning_document_scanner_discard_title" = "Zahodit změny?";
+"cunning_document_scanner_discard_message" = "Opravdu chcete zahodit svůj postup?";
+"cunning_document_scanner_discard" = "Zahodit";

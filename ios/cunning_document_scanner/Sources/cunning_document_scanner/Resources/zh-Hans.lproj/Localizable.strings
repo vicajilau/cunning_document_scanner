@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "照片图库";
 "cunning_document_scanner_cancel" = "取消";
 "cunning_document_scanner_crop_title" = "裁剪第 %1$d 页（共 %2$d 页）";
+"cunning_document_scanner_discard_title" = "放弃更改吗？";
+"cunning_document_scanner_discard_message" = "您确定要放弃当前的进度吗？";
+"cunning_document_scanner_discard" = "放弃";

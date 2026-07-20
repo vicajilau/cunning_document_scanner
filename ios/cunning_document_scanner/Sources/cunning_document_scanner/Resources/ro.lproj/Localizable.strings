@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Librărie foto";
 "cunning_document_scanner_cancel" = "Anulează";
 "cunning_document_scanner_crop_title" = "Decupați pagina %1$d din %2$d";
+"cunning_document_scanner_discard_title" = "Renunțați la modificări?";
+"cunning_document_scanner_discard_message" = "Sigur doriți să renunțați la progresul realizat?";
+"cunning_document_scanner_discard" = "Renunțare";

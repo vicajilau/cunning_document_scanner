@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Photo Library";
 "cunning_document_scanner_cancel" = "Cancel";
 "cunning_document_scanner_crop_title" = "Crop Page %1$d of %2$d";
+"cunning_document_scanner_discard_title" = "Discard changes?";
+"cunning_document_scanner_discard_message" = "Are you sure you want to discard your progress?";
+"cunning_document_scanner_discard" = "Discard";

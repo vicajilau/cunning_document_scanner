@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Thư viện ảnh";
 "cunning_document_scanner_cancel" = "Hủy";
 "cunning_document_scanner_crop_title" = "Cắt trang %1$d / %2$d";
+"cunning_document_scanner_discard_title" = "Hủy bỏ các thay đổi?";
+"cunning_document_scanner_discard_message" = "Bạn có chắc chắn muốn hủy bỏ tiến trình của mình không?";
+"cunning_document_scanner_discard" = "Hủy bỏ";

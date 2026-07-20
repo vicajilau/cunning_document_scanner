@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Biblioteka zdjęć";
 "cunning_document_scanner_cancel" = "Anuluj";
 "cunning_document_scanner_crop_title" = "Przytnij stronę %1$d z %2$d";
+"cunning_document_scanner_discard_title" = "Odrzucić zmiany?";
+"cunning_document_scanner_discard_message" = "Czy na pewno chcesz odrzucić swoje postępy?";
+"cunning_document_scanner_discard" = "Odrzuć";

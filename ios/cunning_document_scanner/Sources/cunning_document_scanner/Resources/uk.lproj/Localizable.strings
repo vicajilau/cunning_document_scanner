@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Бібліотека фото";
 "cunning_document_scanner_cancel" = "Скасувати";
 "cunning_document_scanner_crop_title" = "Обрізати сторінку %1$d з %2$d";
+"cunning_document_scanner_discard_title" = "Скасувати зміни?";
+"cunning_document_scanner_discard_message" = "Ви впевнені, що хочете скасувати свій прогрес?";
+"cunning_document_scanner_discard" = "Скасувати";

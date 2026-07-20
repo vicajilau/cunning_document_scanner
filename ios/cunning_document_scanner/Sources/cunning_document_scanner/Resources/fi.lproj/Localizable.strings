@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Kuvakirjasto";
 "cunning_document_scanner_cancel" = "Peruuta";
 "cunning_document_scanner_crop_title" = "Rajaa sivu %1$d/%2$d";
+"cunning_document_scanner_discard_title" = "Hylätäänkö muutokset?";
+"cunning_document_scanner_discard_message" = "Haluatko varmasti hylätä edistymisesi?";
+"cunning_document_scanner_discard" = "Hylkää";

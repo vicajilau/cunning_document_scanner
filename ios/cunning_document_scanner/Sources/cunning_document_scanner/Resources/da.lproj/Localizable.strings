@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Fotobibliotek";
 "cunning_document_scanner_cancel" = "Annuller";
 "cunning_document_scanner_crop_title" = "Beskær side %1$d af %2$d";
+"cunning_document_scanner_discard_title" = "Kasser ændringer?";
+"cunning_document_scanner_discard_message" = "Er du sikker på, at du vil kassere dit fremskridt?";
+"cunning_document_scanner_discard" = "Kasser";

@@ -2,3 +2,6 @@
 "cunning_document_scanner_gallery" = "Bildbibliotek";
 "cunning_document_scanner_cancel" = "Avbryt";
 "cunning_document_scanner_crop_title" = "Beskär sida %1$d av %2$d";
+"cunning_document_scanner_discard_title" = "Forkasta ändringar?";
+"cunning_document_scanner_discard_message" = "Är du säker på att du vil forkasta dina framsteg?";
+"cunning_document_scanner_discard" = "Forkasta";
