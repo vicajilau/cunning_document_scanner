@@ -241,10 +241,16 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
                 dispatchGroup.enter()
                 result.itemProvider.loadObject(ofClass: UIImage.self) { (object, error) in
                     if let image = object as? UIImage {
-                        // Downscale immediately to prevent memory spikes in concurrent loads
-                        images[index] = image.downscaled(toMaxDimension: 2048)
+                        let downscaled = image.downscaled(toMaxDimension: 2048)
+                        DispatchQueue.main.async {
+                            images[index] = downscaled
+                            dispatchGroup.leave()
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            dispatchGroup.leave()
+                        }
                     }
-                    dispatchGroup.leave()
                 }
             }
         }

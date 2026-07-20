@@ -506,13 +506,15 @@ class CunningDocumentCropperViewController: UIViewController {
         guard let rawCIImage = CIImage(image: image) else { return nil }
         let ciImage = rawCIImage.oriented(CGImagePropertyOrientation(image.imageOrientation))
         
+        let originX = ciImage.extent.origin.x
+        let originY = ciImage.extent.origin.y
         let w = ciImage.extent.width
         let h = ciImage.extent.height
         
-        let tl = CIVector(x: topLeft.x * w, y: topLeft.y * h)
-        let tr = CIVector(x: topRight.x * w, y: topRight.y * h)
-        let bl = CIVector(x: bottomLeft.x * w, y: bottomLeft.y * h)
-        let br = CIVector(x: bottomRight.x * w, y: bottomRight.y * h)
+        let tl = CIVector(x: originX + topLeft.x * w, y: originY + topLeft.y * h)
+        let tr = CIVector(x: originX + topRight.x * w, y: originY + topRight.y * h)
+        let bl = CIVector(x: originX + bottomLeft.x * w, y: originY + bottomLeft.y * h)
+        let br = CIVector(x: originX + bottomRight.x * w, y: originY + bottomRight.y * h)
         
         guard let filter = CIFilter(name: "CIPerspectiveCorrection") else { return nil }
         filter.setValue(ciImage, forKey: kCIInputImageKey)
@@ -648,12 +650,16 @@ class CroppingOverlayView: UIView {
         guard let magnifier = magnifierView, let parentView = self.superview else { return }
         magnifier.touchPoint = touchPointInSelf
         
-        // Position the magnifier offset above the touch point
-        var magnifierCenter = CGPoint(x: touchPoint.x, y: touchPoint.y - 75)
+        let halfHeight = magnifier.bounds.height / 2
+        
+        // Position the magnifier offset above the touch point.
+        // If the touch point is too close to the top, position it below the touch point to avoid going off-screen or being covered by the finger.
+        let isNearTop = (touchPoint.y - 75) < halfHeight
+        let yOffset: CGFloat = isNearTop ? 75 : -75
+        var magnifierCenter = CGPoint(x: touchPoint.x, y: touchPoint.y + yOffset)
         
         // Keep the magnifier within the parent view bounds
         let halfWidth = magnifier.bounds.width / 2
-        let halfHeight = magnifier.bounds.height / 2
         
         magnifierCenter.x = max(halfWidth, min(parentView.bounds.width - halfWidth, magnifierCenter.x))
         magnifierCenter.y = max(halfHeight, min(parentView.bounds.height - halfHeight, magnifierCenter.y))
@@ -705,15 +711,15 @@ extension UIImage {
     func fixedOrientation() -> UIImage {
         if imageOrientation == .up { return self }
         
-        let renderer = UIGraphicsImageRenderer(size: size)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = self.scale
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { _ in
             self.draw(in: CGRect(origin: .zero, size: size))
         }
     }
     
     func rotated90Clockwise() -> UIImage? {
-        guard let cgImage = self.cgImage else { return nil }
-        
         let newOrientation: UIImage.Orientation
         switch self.imageOrientation {
         case .up: newOrientation = .right
@@ -727,7 +733,12 @@ extension UIImage {
         @unknown default: newOrientation = .right
         }
         
-        return UIImage(cgImage: cgImage, scale: self.scale, orientation: newOrientation)
+        if let cgImage = self.cgImage {
+            return UIImage(cgImage: cgImage, scale: self.scale, orientation: newOrientation)
+        } else if let ciImage = self.ciImage {
+            return UIImage(ciImage: ciImage, scale: self.scale, orientation: newOrientation)
+        }
+        return nil
     }
     
     func downscaled(toMaxDimension maxDimension: CGFloat) -> UIImage {
