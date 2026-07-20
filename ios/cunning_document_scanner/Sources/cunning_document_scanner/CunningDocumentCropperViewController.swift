@@ -427,6 +427,18 @@ class CunningDocumentCropperViewController: UIViewController {
                 )
             }
             
+            let finalImage: UIImage
+            if let cropped = cropped {
+                finalImage = cropped
+            } else {
+                // Fallback to original image with orientation fixed/baked in
+                var fixed: UIImage?
+                autoreleasepool {
+                    fixed = currentImage.fixedOrientation()
+                }
+                finalImage = fixed ?? currentImage
+            }
+            
             DispatchQueue.main.async {
                 self.cancelButton.isEnabled = true
                 self.doneButton.isEnabled = true
@@ -434,12 +446,7 @@ class CunningDocumentCropperViewController: UIViewController {
                 self.backButton.isEnabled = true
                 self.activityIndicator.stopAnimating()
                 
-                if let cropped = cropped {
-                    self.croppedImages.append(cropped)
-                } else {
-                    // Fallback to original image if cropping failed
-                    self.croppedImages.append(currentImage)
-                }
+                self.croppedImages.append(finalImage)
                 
                 self.currentIndex += 1
                 if self.currentIndex < self.images.count {
@@ -545,6 +552,7 @@ class CroppingOverlayView: UIView {
     private var handles: [UIView] = []
     private let handleSize: CGFloat = 34
     private var magnifierView: MagnifierView?
+    private var activeHandle: UIView?
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -585,6 +593,11 @@ class CroppingOverlayView: UIView {
     
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
         guard let handle = gesture.view else { return }
+        
+        if let active = activeHandle, active !== handle {
+            return
+        }
+        
         let translation = gesture.translation(in: self)
         var newCenter = CGPoint(x: handle.center.x + translation.x, y: handle.center.y + translation.y)
         
@@ -618,6 +631,7 @@ class CroppingOverlayView: UIView {
         
         switch gesture.state {
         case .began:
+            activeHandle = handle
             let magnifier = MagnifierView(frame: CGRect(x: 0, y: 0, width: 90, height: 90))
             
             // Temporarily hide the overlay view so it isn't captured in the zoom lens background
@@ -641,6 +655,7 @@ class CroppingOverlayView: UIView {
         case .ended, .cancelled:
             magnifierView?.removeFromSuperview()
             magnifierView = nil
+            activeHandle = nil
         default:
             break
         }
