@@ -503,7 +503,8 @@ class CunningDocumentCropperViewController: UIViewController {
     }
     
     private func cropImage(image: UIImage, topLeft: CGPoint, topRight: CGPoint, bottomLeft: CGPoint, bottomRight: CGPoint) -> UIImage? {
-        guard let ciImage = CIImage(image: image) else { return nil }
+        guard let rawCIImage = CIImage(image: image) else { return nil }
+        let ciImage = rawCIImage.oriented(CGImagePropertyOrientation(image.imageOrientation))
         
         let w = ciImage.extent.width
         let h = ciImage.extent.height
@@ -802,5 +803,23 @@ class MagnifierView: UIView {
         crosshair.addLine(to: CGPoint(x: midX, y: midY + 8))
         crosshair.lineWidth = 1.5
         crosshair.stroke()
+    }
+}
+
+// MARK: - CGImagePropertyOrientation Mapping Helper
+
+extension CGImagePropertyOrientation {
+    init(_ uiOrientation: UIImage.Orientation) {
+        switch uiOrientation {
+        case .up: self = .up
+        case .upMirrored: self = .upMirrored
+        case .down: self = .down
+        case .downMirrored: self = .downMirrored
+        case .leftMirrored: self = .leftMirrored
+        case .right: self = .right
+        case .rightMirrored: self = .rightMirrored
+        case .left: self = .left
+        @unknown default: self = .up
+        }
     }
 }
