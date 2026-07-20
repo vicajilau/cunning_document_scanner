@@ -202,8 +202,10 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
             return
         }
         
+        let downscaledImage = image.downscaled(toMaxDimension: 2048)
+        
         picker.dismiss(animated: true) {
-            let cropper = CunningDocumentCropperViewController(images: [image]) { [weak self] key, defaultValue in
+            let cropper = CunningDocumentCropperViewController(images: [downscaledImage]) { [weak self] key, defaultValue in
                 return self?.getLocalizedOption(key, defaultValue: defaultValue) ?? defaultValue
             }
             cropper.delegate = self
@@ -239,7 +241,8 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
                 dispatchGroup.enter()
                 result.itemProvider.loadObject(ofClass: UIImage.self) { (object, error) in
                     if let image = object as? UIImage {
-                        images[index] = image
+                        // Downscale immediately to prevent memory spikes in concurrent loads
+                        images[index] = image.downscaled(toMaxDimension: 2048)
                     }
                     dispatchGroup.leave()
                 }

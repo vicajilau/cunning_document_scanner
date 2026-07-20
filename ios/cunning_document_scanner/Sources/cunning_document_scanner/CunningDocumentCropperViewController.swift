@@ -227,9 +227,14 @@ class CunningDocumentCropperViewController: UIViewController {
     private func loadCurrentImage() {
         guard currentIndex < images.count else { return }
         
-        let currentImage = images[currentIndex].fixedOrientation()
-        self.currentNormalizedImage = currentImage
-        imageView.image = currentImage
+        let imageToProcess = images[currentIndex]
+        
+        // Show spinner and temporarily disable controls
+        activityIndicator.startAnimating()
+        doneButton.isEnabled = false
+        rotateButton.isEnabled = false
+        cancelButton.isEnabled = false
+        backButton.isEnabled = false
         
         // Update Title and Done Button Label
         let pageNum = currentIndex + 1
@@ -247,19 +252,54 @@ class CunningDocumentCropperViewController: UIViewController {
         // Show/hide back button based on page index
         backButton.isHidden = (currentIndex == 0)
         
-        // Restore coordinates if previously saved, otherwise run auto-detection
-        if let saved = savedCoordinates[currentIndex] {
-            self.normTopLeft = saved.topLeft
-            self.normTopRight = saved.topRight
-            self.normBottomLeft = saved.bottomLeft
-            self.normBottomRight = saved.bottomRight
-            self.hasSetupPoints = true
-            self.hasUserModifiedPoints = true
-        } else {
-            self.hasSetupPoints = false
-            self.hasUserModifiedPoints = false
+        // Perform fixedOrientation on a background thread with an autoreleasepool to save memory
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            var fixedImage: UIImage?
+            autoreleasepool {
+                fixedImage = imageToProcess.fixedOrientation()
+            }
+            
+            DispatchQueue.main.async {
+                // Ensure the user hasn't switched pages while we were processing
+                guard self.currentIndex < self.images.count, self.images[self.currentIndex] === imageToProcess else {
+                    return
+                }
+                
+                guard let resolvedImage = fixedImage else {
+                    self.activityIndicator.stopAnimating()
+                    self.doneButton.isEnabled = true
+                    self.rotateButton.isEnabled = true
+                    self.cancelButton.isEnabled = true
+                    self.backButton.isEnabled = !self.backButton.isHidden
+                    return
+                }
+                
+                self.currentNormalizedImage = resolvedImage
+                self.imageView.image = resolvedImage
+                
+                self.activityIndicator.stopAnimating()
+                self.doneButton.isEnabled = true
+                self.rotateButton.isEnabled = true
+                self.cancelButton.isEnabled = true
+                self.backButton.isEnabled = !self.backButton.isHidden
+                
+                // Restore coordinates if previously saved, otherwise run auto-detection
+                if let saved = self.savedCoordinates[self.currentIndex] {
+                    self.normTopLeft = saved.topLeft
+                    self.normTopRight = saved.topRight
+                    self.normBottomLeft = saved.bottomLeft
+                    self.normBottomRight = saved.bottomRight
+                    self.hasSetupPoints = true
+                    self.hasUserModifiedPoints = true
+                } else {
+                    self.hasSetupPoints = false
+                    self.hasUserModifiedPoints = false
+                }
+                self.view.setNeedsLayout()
+            }
         }
-        view.setNeedsLayout()
     }
     
     private func detectAndSetupPoints() {
@@ -376,13 +416,16 @@ class CunningDocumentCropperViewController: UIViewController {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
-            let cropped = self.cropImage(
-                image: currentImage,
-                topLeft: self.normTopLeft,
-                topRight: self.normTopRight,
-                bottomLeft: self.normBottomLeft,
-                bottomRight: self.normBottomRight
-            )
+            var cropped: UIImage?
+            autoreleasepool {
+                cropped = self.cropImage(
+                    image: currentImage,
+                    topLeft: self.normTopLeft,
+                    topRight: self.normTopRight,
+                    bottomLeft: self.normBottomLeft,
+                    bottomRight: self.normBottomRight
+                )
+            }
             
             DispatchQueue.main.async {
                 self.cancelButton.isEnabled = true
@@ -417,12 +460,33 @@ class CunningDocumentCropperViewController: UIViewController {
             self.currentNormalizedImage = rotated
             self.imageView.image = rotated
             
-            // Clear any saved coordinates for this page to force re-detection on new orientation
-            self.savedCoordinates[currentIndex] = nil
+            // Rotate the normalized coordinates 90 degrees clockwise:
+            // x' = y
+            // y' = 1 - x
+            let oldTopLeft = self.normTopLeft
+            let oldTopRight = self.normTopRight
+            let oldBottomLeft = self.normBottomLeft
+            let oldBottomRight = self.normBottomRight
             
-            // Reset flags to force handle calculation on rotated dimensions
-            hasSetupPoints = false
+            self.normTopLeft = CGPoint(x: oldBottomLeft.y, y: 1.0 - oldBottomLeft.x)
+            self.normTopRight = CGPoint(x: oldTopLeft.y, y: 1.0 - oldTopLeft.x)
+            self.normBottomRight = CGPoint(x: oldTopRight.y, y: 1.0 - oldTopRight.x)
+            self.normBottomLeft = CGPoint(x: oldBottomRight.y, y: 1.0 - oldBottomRight.x)
+            
+            // Save the newly rotated coordinates
+            self.savedCoordinates[currentIndex] = PageCoordinates(
+                topLeft: self.normTopLeft,
+                topRight: self.normTopRight,
+                bottomLeft: self.normBottomLeft,
+                bottomRight: self.normBottomRight
+            )
+            
+            // Mark points as set up so we don't trigger Vision auto-detection again
+            hasSetupPoints = true
+            
+            // Force redraw of layout and update overlay handle positions
             view.setNeedsLayout()
+            view.layoutIfNeeded()
         }
     }
     
@@ -552,12 +616,25 @@ class CroppingOverlayView: UIView {
         switch gesture.state {
         case .began:
             let magnifier = MagnifierView(frame: CGRect(x: 0, y: 0, width: 90, height: 90))
-            magnifier.viewToMagnify = parentView
+            
+            // Temporarily hide the overlay view so it isn't captured in the zoom lens background
+            self.isHidden = true
+            
+            // Snapshot the parent view once
+            let renderer = UIGraphicsImageRenderer(size: parentView.bounds.size)
+            let snapshot = renderer.image { ctx in
+                parentView.layer.render(in: ctx.cgContext)
+            }
+            
+            // Restore visibility
+            self.isHidden = false
+            
+            magnifier.snapshotImage = snapshot
             parentView.addSubview(magnifier)
             self.magnifierView = magnifier
-            updateMagnifier(touchPoint: touchPointInParent)
+            updateMagnifier(touchPoint: touchPointInParent, touchPointInSelf: touchPointInParent)
         case .changed:
-            updateMagnifier(touchPoint: touchPointInParent)
+            updateMagnifier(touchPoint: touchPointInParent, touchPointInSelf: touchPointInParent)
         case .ended, .cancelled:
             magnifierView?.removeFromSuperview()
             magnifierView = nil
@@ -566,9 +643,9 @@ class CroppingOverlayView: UIView {
         }
     }
     
-    private func updateMagnifier(touchPoint: CGPoint) {
+    private func updateMagnifier(touchPoint: CGPoint, touchPointInSelf: CGPoint) {
         guard let magnifier = magnifierView, let parentView = self.superview else { return }
-        magnifier.touchPoint = touchPoint
+        magnifier.touchPoint = touchPointInSelf
         
         // Position the magnifier offset above the touch point
         var magnifierCenter = CGPoint(x: touchPoint.x, y: touchPoint.y - 75)
@@ -634,18 +711,40 @@ extension UIImage {
     }
     
     func rotated90Clockwise() -> UIImage? {
-        let newSize = CGSize(width: size.height, height: size.width)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        guard let cgImage = self.cgImage else { return nil }
         
-        return renderer.image { context in
-            let cgContext = context.cgContext
-            
-            // Move origin to the center and rotate
-            cgContext.translateBy(x: newSize.width / 2, y: newSize.height / 2)
-            cgContext.rotate(by: .pi / 2)
-            
-            // Draw the image centered
-            self.draw(in: CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height))
+        let newOrientation: UIImage.Orientation
+        switch self.imageOrientation {
+        case .up: newOrientation = .right
+        case .right: newOrientation = .down
+        case .down: newOrientation = .left
+        case .left: newOrientation = .up
+        case .upMirrored: newOrientation = .rightMirrored
+        case .rightMirrored: newOrientation = .downMirrored
+        case .downMirrored: newOrientation = .leftMirrored
+        case .leftMirrored: newOrientation = .upMirrored
+        @unknown default: newOrientation = .right
+        }
+        
+        return UIImage(cgImage: cgImage, scale: self.scale, orientation: newOrientation)
+    }
+    
+    func downscaled(toMaxDimension maxDimension: CGFloat) -> UIImage {
+        let size = self.size
+        let maxDim = max(size.width, size.height)
+        if maxDim <= maxDimension {
+            return self
+        }
+        
+        let scale = maxDimension / maxDim
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1.0 // Use 1.0 scale to keep exact pixel dimensions
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }
@@ -653,7 +752,7 @@ extension UIImage {
 // MARK: - MagnifierView
 
 class MagnifierView: UIView {
-    var viewToMagnify: UIView?
+    var snapshotImage: UIImage?
     var touchPoint: CGPoint = .zero {
         didSet {
             setNeedsDisplay()
@@ -674,23 +773,17 @@ class MagnifierView: UIView {
     }
     
     override func draw(_ rect: CGRect) {
-        guard let context = UIGraphicsGetCurrentContext(), let view = viewToMagnify else { return }
+        guard let context = UIGraphicsGetCurrentContext(), let image = snapshotImage else { return }
         
         // Circular clipping
         let path = UIBezierPath(ovalIn: rect)
         path.addClip()
         
-        // Temporarily hide magnifier view to avoid rendering itself
-        let wasHidden = self.isHidden
-        self.isHidden = true
-        
         context.translateBy(x: rect.width / 2, y: rect.height / 2)
         context.scaleBy(x: 1.5, y: 1.5)
         context.translateBy(x: -touchPoint.x, y: -touchPoint.y)
         
-        view.layer.render(in: context)
-        
-        self.isHidden = wasHidden
+        image.draw(at: .zero)
         
         // Draw border ring
         UIColor.white.setStroke()
