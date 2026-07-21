@@ -101,16 +101,12 @@ class CunningDocumentScannerPlugin :
             if (::activity.isInitialized) {
                 val picturesDir = activity.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES)
                 picturesDir?.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("DOCUMENT_SCAN_") || file.name.endsWith(".jpg") || file.name.endsWith(".png") ||
-                        file.name.endsWith(".pdf")
-                    ) {
+                    if (isScanFile(file.name)) {
                         file.delete()
                     }
                 }
                 activity.cacheDir?.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("DOCUMENT_SCAN_") || file.name.endsWith(".jpg") || file.name.endsWith(".png") ||
-                        file.name.endsWith(".pdf")
-                    ) {
+                    if (isScanFile(file.name)) {
                         file.delete()
                     }
                 }
@@ -120,6 +116,12 @@ class CunningDocumentScannerPlugin :
             result.error("CLEAN_CACHE_ERROR", e.localizedMessage, null)
         }
     }
+
+    private fun isScanFile(fileName: String): Boolean =
+        fileName.startsWith("DOCUMENT_SCAN_") ||
+            fileName.endsWith(".jpg") ||
+            fileName.endsWith(".png") ||
+            fileName.endsWith(".pdf")
 
     // / Called when the plugin is detached from the Flutter Engine.
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -137,11 +139,12 @@ class CunningDocumentScannerPlugin :
         val intent =
             Intent(Intent.ACTION_GET_CONTENT).apply {
                 type = "image/*"
-                addCategory(Intent.CATEGORY_OPENABLE)
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
+
         try {
-            ActivityCompat.startActivityForResult(activity, intent, START_GALLERY_PICKER, null)
-        } catch (_: ActivityNotFoundException) {
+            activity.startActivityForResult(intent, START_GALLERY_PICKER)
+        } catch (e: ActivityNotFoundException) {
             pendingResult?.error("ERROR", "Failed to start gallery picker", null)
         }
     }
@@ -153,9 +156,11 @@ class CunningDocumentScannerPlugin :
             this.delegate =
                 PluginRegistry.ActivityResultListener { requestCode, resultCode, data ->
                     android.util.Log.d("CunningScannerPlugin", "onActivityResult - requestCode: $requestCode, resultCode: $resultCode")
-                    if (requestCode != START_DOCUMENT_ACTIVITY && requestCode != START_DOCUMENT_FB_ACTIVITY &&
-                        requestCode != START_GALLERY_PICKER
-                    ) {
+                    val isPluginRequest =
+                        requestCode == START_DOCUMENT_ACTIVITY ||
+                            requestCode == START_DOCUMENT_FB_ACTIVITY ||
+                            requestCode == START_GALLERY_PICKER
+                    if (!isPluginRequest) {
                         return@ActivityResultListener false
                     }
                     var handled = false

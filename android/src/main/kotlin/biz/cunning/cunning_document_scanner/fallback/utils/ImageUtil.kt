@@ -1,13 +1,11 @@
 package biz.cunning.cunning_document_scanner.fallback.utils
 
-import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.media.ExifInterface
-import android.net.Uri
 import biz.cunning.cunning_document_scanner.fallback.models.Quad
 import kotlin.math.pow
 import kotlin.math.sqrt
