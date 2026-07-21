@@ -10,7 +10,10 @@ import kotlin.math.sqrt
  *
  * @param file the bitmap gets saved to this file
  */
-fun Bitmap.saveToFile(file: File, quality: Int) {
+fun Bitmap.saveToFile(
+    file: File,
+    quality: Int,
+) {
     val fileOutputStream = FileOutputStream(file)
     compress(Bitmap.CompressFormat.JPEG, quality, fileOutputStream)
     fileOutputStream.close()
@@ -27,6 +30,6 @@ fun Bitmap.changeByteCountByResizing(targetBytes: Int): Bitmap {
         this,
         (width * scale).toInt(),
         (height * scale).toInt(),
-        true
+        true,
     )
 }

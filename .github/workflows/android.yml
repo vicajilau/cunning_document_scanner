@@ -1,0 +1,22 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  ktlint:
+    name: Ktlint Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Ktlint
+        run: |
+          curl -sSL https://github.com/pinterest/ktlint/releases/download/1.3.1/ktlint -o /usr/local/bin/ktlint
+          chmod +x /usr/local/bin/ktlint
+
+      - name: Run Ktlint Check
+        run: ktlint "android/**/*.kt"

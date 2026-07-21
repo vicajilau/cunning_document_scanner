@@ -53,7 +53,8 @@ class CunningDocumentScanner {
             : ScannerSource.camera);
 
     if (kDebugMode) {
-      print("CunningDocumentScanner: scannerSource=$scannerSource, resolvedSource=$resolvedSource, methodChannelValue=${resolvedSource.methodChannelValue}");
+      print(
+          "CunningDocumentScanner: scannerSource=$scannerSource, resolvedSource=$resolvedSource, methodChannelValue=${resolvedSource.methodChannelValue}");
     }
 
     final List<dynamic>? pictures = await _channel.invokeMethod('getPictures', {

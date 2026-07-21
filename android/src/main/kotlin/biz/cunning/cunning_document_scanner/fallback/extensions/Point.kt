@@ -10,10 +10,7 @@ import kotlin.math.sqrt
  *
  * @return Android point
  */
-fun Point.toPointF(): PointF {
-    return PointF(x.toFloat(), y.toFloat())
-}
-
+fun Point.toPointF(): PointF = PointF(x.toFloat(), y.toFloat())
 
 /**
  * offset the OpenCV point by (dx, dy)
@@ -22,18 +19,17 @@ fun Point.toPointF(): PointF {
  * @param dy vertical offset
  * @return the OpenCV point after moving it (dx, dy)
  */
-fun Point.move(dx: Double, dy: Double): Point {
-    return Point(x + dx, y + dy)
-}
+fun Point.move(
+    dx: Double,
+    dy: Double,
+): Point = Point(x + dx, y + dy)
 
 /**
  * multiply an Android point by magnitude
  *
  * @return Android point after multiplying by magnitude
  */
-fun PointF.multiply(magnitude: Float): PointF {
-    return PointF(magnitude * x, magnitude * y)
-}
+fun PointF.multiply(magnitude: Float): PointF = PointF(magnitude * x, magnitude * y)
 
 /**
  * offset the Android point by (dx, dy)
@@ -42,9 +38,10 @@ fun PointF.multiply(magnitude: Float): PointF {
  * @param dy vertical offset
  * @return the Android point after moving it (dx, dy)
  */
-fun PointF.move(dx: Float, dy: Float): PointF {
-    return PointF(x + dx, y + dy)
-}
+fun PointF.move(
+    dx: Float,
+    dy: Float,
+): PointF = PointF(x + dx, y + dy)
 
 /**
  * calculates the distance between 2 Android points
@@ -52,6 +49,4 @@ fun PointF.move(dx: Float, dy: Float): PointF {
  * @param point the 2nd Android point
  * @return the distance between this point and the 2nd point
  */
-fun PointF.distance(point: PointF): Float {
-    return sqrt((point.x - x).pow(2) + (point.y - y).pow(2))
-}
+fun PointF.distance(point: PointF): Float = sqrt((point.x - x).pow(2) + (point.y - y).pow(2))

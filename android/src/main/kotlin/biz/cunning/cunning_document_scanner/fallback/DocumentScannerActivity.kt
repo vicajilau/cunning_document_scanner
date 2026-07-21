@@ -2,6 +2,7 @@ package biz.cunning.cunning_document_scanner.fallback
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -24,88 +25,88 @@ import biz.cunning.cunning_document_scanner.fallback.utils.CameraUtil
 import biz.cunning.cunning_document_scanner.fallback.utils.FileUtil
 import biz.cunning.cunning_document_scanner.fallback.utils.ImageUtil
 import java.io.File
-import android.content.pm.PackageManager
 
-/// This class contains the main document scanner code. It opens the camera, lets the user
-/// take a photo of a document (homework paper, business card, etc.), detects document corners,
-/// allows user to make adjustments to the detected corners, depending on options, and saves
-/// the cropped document. It allows the user to do this for 1 or more documents.
+// / This class contains the main document scanner code. It opens the camera, lets the user
+// / take a photo of a document (homework paper, business card, etc.), detects document corners,
+// / allows user to make adjustments to the detected corners, depending on options, and saves
+// / the cropped document. It allows the user to do this for 1 or more documents.
 class DocumentScannerActivity : AppCompatActivity() {
-    
-    /// Maximum number of documents a user can scan at a time.
+    // / Maximum number of documents a user can scan at a time.
     private var maxNumDocuments = DefaultSetting.MAX_NUM_DOCUMENTS
 
-    /// The 0 - 100 quality of the cropped image.
+    // / The 0 - 100 quality of the cropped image.
     private var croppedImageQuality = DefaultSetting.CROPPED_IMAGE_QUALITY
 
-    /// Default offset margin used when document corners are not detected.
+    // / Default offset margin used when document corners are not detected.
     private val cropperOffsetWhenCornersNotFound = 100.0
 
-    /// Current document being processed. Set once a photo is taken and corners are resolved.
+    // / Current document being processed. Set once a photo is taken and corners are resolved.
     private var document: Document? = null
 
-    /// List of scanned/cropped documents containing original paths, dimensions, and corners.
+    // / List of scanned/cropped documents containing original paths, dimensions, and corners.
     private val documents = mutableListOf<Document>()
 
-    /// Camera utilities callback delegate to handle camera capture success or cancel events.
-    private val cameraUtil = CameraUtil(
-        this,
-        onPhotoCaptureSuccess = {
-            originalPhotoPath ->
+    // / Camera utilities callback delegate to handle camera capture success or cancel events.
+    private val cameraUtil =
+        CameraUtil(
+            this,
+            onPhotoCaptureSuccess = { originalPhotoPath ->
 
-            // Hide the add-new-photo button if the documents count reaches max limit minus one
-            if (documents.size == maxNumDocuments - 1) {
-                val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
-                newPhotoButton.isClickable = false
-                newPhotoButton.visibility = View.INVISIBLE
-            }
-
-            val photo: Bitmap? = try {
-                ImageUtil().getImageFromFilePath(originalPhotoPath)
-            } catch (exception: Exception) {
-                finishIntentWithError("Unable to get bitmap: ${exception.localizedMessage}")
-                return@CameraUtil
-            }
-
-            if (photo == null) {
-                finishIntentWithError("Document bitmap is null.")
-                return@CameraUtil
-            }
-
-            detectCorners(photo) { corners ->
-                document = Document(originalPhotoPath, photo.width, photo.height, corners)
-
-                try {
-                    imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
-                    imageView.setImage(photo)
-
-                    // Map corners from absolute coordinates to preview bounds coordinates
-                    val cornersInImagePreviewCoordinates = corners
-                        .mapOriginalToPreviewImageCoordinates(
-                            imageView.imagePreviewBounds,
-                            imageView.imagePreviewBounds.height() / photo.height
-                        )
-
-                    imageView.setCropper(cornersInImagePreviewCoordinates)
-                } catch (exception: Exception) {
-                    finishIntentWithError(
-                        "unable get image preview ready: ${exception.message}"
-                    )
+                // Hide the add-new-photo button if the documents count reaches max limit minus one
+                if (documents.size == maxNumDocuments - 1) {
+                    val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
+                    newPhotoButton.isClickable = false
+                    newPhotoButton.visibility = View.INVISIBLE
                 }
-            }
-        },
-        onCancelPhoto = {
-            if (documents.isEmpty()) {
-                onClickCancel()
-            }
-        }
-    )
 
-    /// Container view holding the preview image and draggable crop overlay.
+                val photo: Bitmap? =
+                    try {
+                        ImageUtil().getImageFromFilePath(originalPhotoPath)
+                    } catch (exception: Exception) {
+                        finishIntentWithError("Unable to get bitmap: ${exception.localizedMessage}")
+                        return@CameraUtil
+                    }
+
+                if (photo == null) {
+                    finishIntentWithError("Document bitmap is null.")
+                    return@CameraUtil
+                }
+
+                detectCorners(photo) { corners ->
+                    document = Document(originalPhotoPath, photo.width, photo.height, corners)
+
+                    try {
+                        imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
+                        imageView.setImage(photo)
+
+                        // Map corners from absolute coordinates to preview bounds coordinates
+                        val cornersInImagePreviewCoordinates =
+                            corners
+                                .mapOriginalToPreviewImageCoordinates(
+                                    imageView.imagePreviewBounds,
+                                    imageView.imagePreviewBounds.height() / photo.height,
+                                )
+
+                        imageView.setCropper(cornersInImagePreviewCoordinates)
+                    } catch (exception: Exception) {
+                        finishIntentWithError(
+                            "unable get image preview ready: ${exception.message}",
+                        )
+                    }
+                }
+            },
+            onCancelPhoto = {
+                if (documents.isEmpty()) {
+                    onClickCancel()
+                }
+            },
+        )
+
+    // / Container view holding the preview image and draggable crop overlay.
     private lateinit var imageView: ImageCropView
 
-    /// Called when the activity is first created. Sets up UI buttons, handles intent extras,
-    /// and resolves whether to load an initial image URI or launch the camera.
+    // / Called when the activity is first created. Sets up UI buttons, handles intent extras,
+    // / and resolves whether to load an initial image URI or launch the camera.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -117,7 +118,7 @@ class DocumentScannerActivity : AppCompatActivity() {
             intent.extras?.get(DocumentScannerExtra.EXTRA_MAX_NUM_DOCUMENTS)?.let {
                 if (it.toString().toIntOrNull() == null) {
                     throw Exception(
-                        "${DocumentScannerExtra.EXTRA_MAX_NUM_DOCUMENTS} must be a positive number"
+                        "${DocumentScannerExtra.EXTRA_MAX_NUM_DOCUMENTS} must be a positive number",
                     )
                 }
                 userSpecifiedMaxImages = it as Int
@@ -128,22 +129,23 @@ class DocumentScannerActivity : AppCompatActivity() {
                 if (it !is Int || it < 0 || it > 100) {
                     throw Exception(
                         "${DocumentScannerExtra.EXTRA_CROPPED_IMAGE_QUALITY} must be a number " +
-                                "between 0 and 100"
+                            "between 0 and 100",
                     )
                 }
                 croppedImageQuality = it
             }
         } catch (exception: Exception) {
             finishIntentWithError(
-                "invalid extra: ${exception.message}"
+                "invalid extra: ${exception.message}",
             )
             return
         }
 
         val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
-        val completeDocumentScanButton: ImageButton = findViewById(
-            R.id.complete_document_scan_button
-        )
+        val completeDocumentScanButton: ImageButton =
+            findViewById(
+                R.id.complete_document_scan_button,
+            )
         val retakePhotoButton: ImageButton = findViewById(R.id.retake_photo_button)
 
         newPhotoButton.onClick { onClickNew() }
@@ -158,9 +160,10 @@ class DocumentScannerActivity : AppCompatActivity() {
             try {
                 val photoUri = Uri.parse(initialImageUriStr)
                 android.util.Log.d("DocumentScannerActivity", "Attempting to open Uri stream: $photoUri")
-                val photo = contentResolver.openInputStream(photoUri)?.use { inputStream ->
-                    android.graphics.BitmapFactory.decodeStream(inputStream)
-                } ?: throw Exception("Failed to decode image from Uri")
+                val photo =
+                    contentResolver.openInputStream(photoUri)?.use { inputStream ->
+                        android.graphics.BitmapFactory.decodeStream(inputStream)
+                    } ?: throw Exception("Failed to decode image from Uri")
                 android.util.Log.d("DocumentScannerActivity", "Decoded bitmap dimensions: ${photo.width} x ${photo.height}")
 
                 val photoFile = FileUtil().createImageFile(this, 0)
@@ -174,11 +177,12 @@ class DocumentScannerActivity : AppCompatActivity() {
                     try {
                         imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
                         imageView.setImage(photo)
-                        val cornersInImagePreviewCoordinates = corners
-                            .mapOriginalToPreviewImageCoordinates(
-                                imageView.imagePreviewBounds,
-                                imageView.imagePreviewBounds.height() / photo.height
-                            )
+                        val cornersInImagePreviewCoordinates =
+                            corners
+                                .mapOriginalToPreviewImageCoordinates(
+                                    imageView.imagePreviewBounds,
+                                    imageView.imagePreviewBounds.height() / photo.height,
+                                )
                         imageView.setCropper(cornersInImagePreviewCoordinates)
                         android.util.Log.d("DocumentScannerActivity", "Crop view and cropper initialized")
                     } catch (exception: Exception) {
@@ -195,97 +199,101 @@ class DocumentScannerActivity : AppCompatActivity() {
                 openCamera()
             } catch (exception: Exception) {
                 finishIntentWithError(
-                    "error opening camera: ${exception.message}"
+                    "error opening camera: ${exception.message}",
                 )
             }
         }
     }
 
-    /// Resolves document corners asynchronously. Defaults to inset bounding box.
-    private fun detectCorners(photo: Bitmap, onComplete: (Quad) -> Unit) {
+    // / Resolves document corners asynchronously. Defaults to inset bounding box.
+    private fun detectCorners(
+        photo: Bitmap,
+        onComplete: (Quad) -> Unit,
+    ) {
         onComplete(getDefaultCorners(photo))
     }
 
-    /// Computes default fallback corner locations with standard inset offsets.
-    private fun getDefaultCorners(photo: Bitmap): Quad {
-        return Quad(
+    // / Computes default fallback corner locations with standard inset offsets.
+    private fun getDefaultCorners(photo: Bitmap): Quad =
+        Quad(
             Point(0.0, 0.0).move(
                 cropperOffsetWhenCornersNotFound,
-                cropperOffsetWhenCornersNotFound
+                cropperOffsetWhenCornersNotFound,
             ),
             Point(photo.width.toDouble(), 0.0).move(
                 -cropperOffsetWhenCornersNotFound,
-                cropperOffsetWhenCornersNotFound
+                cropperOffsetWhenCornersNotFound,
             ),
             Point(photo.width.toDouble(), photo.height.toDouble()).move(
                 -cropperOffsetWhenCornersNotFound,
-                -cropperOffsetWhenCornersNotFound
+                -cropperOffsetWhenCornersNotFound,
             ),
             Point(0.0, photo.height.toDouble()).move(
                 cropperOffsetWhenCornersNotFound,
-                -cropperOffsetWhenCornersNotFound
-            )
+                -cropperOffsetWhenCornersNotFound,
+            ),
         )
-    }
 
-    /// Resets current document state and launches camera utility intent.
+    // / Resets current document state and launches camera utility intent.
     private fun openCamera() {
         document = null
         cameraUtil.openCamera(documents.size)
     }
 
-    /// Converts preview coordinates to original image coordinates and adds the document to the list.
+    // / Converts preview coordinates to original image coordinates and adds the document to the list.
     private fun addSelectedCornersAndOriginalPhotoPathToDocuments() {
         document?.let { document ->
-            val cornersInOriginalImageCoordinates = imageView.corners
-                .mapPreviewToOriginalImageCoordinates(
-                    imageView.imagePreviewBounds,
-                    imageView.imagePreviewBounds.height() / document.originalPhotoHeight
-                )
+            val cornersInOriginalImageCoordinates =
+                imageView.corners
+                    .mapPreviewToOriginalImageCoordinates(
+                        imageView.imagePreviewBounds,
+                        imageView.imagePreviewBounds.height() / document.originalPhotoHeight,
+                    )
             document.corners = cornersInOriginalImageCoordinates
             documents.add(document)
         }
     }
 
-    /// Callback triggered by new photo button click.
+    // / Callback triggered by new photo button click.
     private fun onClickNew() {
         addSelectedCornersAndOriginalPhotoPathToDocuments()
         openCamera()
     }
 
-    /// Callback triggered by complete done button click.
+    // / Callback triggered by complete done button click.
     private fun onClickDone() {
         addSelectedCornersAndOriginalPhotoPathToDocuments()
         cropDocumentAndFinishIntent()
     }
 
-    /// Callback triggered by retake photo button click. Deletes current captured file and opens camera.
+    // / Callback triggered by retake photo button click. Deletes current captured file and opens camera.
     private fun onClickRetake() {
         document?.let { document -> File(document.originalPhotoFilePath).delete() }
         openCamera()
     }
 
-    /// Callback triggered by cancel click. Cancels activity and returns cancel result code.
+    // / Callback triggered by cancel click. Cancels activity and returns cancel result code.
     private fun onClickCancel() {
         setResult(Activity.RESULT_CANCELED)
         finish()
     }
 
-    /// Crops the documented pages, deletes temporary files, and returns file paths to parent activity.
+    // / Crops the documented pages, deletes temporary files, and returns file paths to parent activity.
     private fun cropDocumentAndFinishIntent() {
         val croppedImageResults = arrayListOf<String>()
         android.util.Log.d("DocumentScannerActivity", "cropDocumentAndFinishIntent starting for ${documents.size} documents")
         for ((pageNumber, document) in documents.withIndex()) {
-            val croppedImage: Bitmap? = try {
-                ImageUtil().crop(
-                    document.originalPhotoFilePath,
-                    document.corners
-                )
-            } catch (exception: Exception) {
-                android.util.Log.e("DocumentScannerActivity", "Error cropping page $pageNumber: ${exception.message}")
-                finishIntentWithError("unable to crop image: ${exception.message}")
-                return
-            }
+            val croppedImage: Bitmap? =
+                try {
+                    ImageUtil().crop(
+                        document.originalPhotoFilePath,
+                        document.corners,
+                    )
+                } catch (exception: Exception) {
+                    android.util.Log.e("DocumentScannerActivity", "Error cropping page $pageNumber: ${exception.message}")
+                    finishIntentWithError("unable to crop image: ${exception.message}")
+                    return
+                }
 
             if (croppedImage == null) {
                 android.util.Log.e("DocumentScannerActivity", "Cropped image is null for page $pageNumber")
@@ -304,7 +312,7 @@ class DocumentScannerActivity : AppCompatActivity() {
             } catch (exception: Exception) {
                 android.util.Log.e("DocumentScannerActivity", "Error saving cropped image page $pageNumber: ${exception.message}")
                 finishIntentWithError(
-                    "unable to save cropped image: ${exception.message}"
+                    "unable to save cropped image: ${exception.message}",
                 )
             }
         }
@@ -312,16 +320,16 @@ class DocumentScannerActivity : AppCompatActivity() {
         android.util.Log.d("DocumentScannerActivity", "Finishing success with cropped results: $croppedImageResults")
         setResult(
             Activity.RESULT_OK,
-            Intent().putExtra("croppedImageResults", croppedImageResults)
+            Intent().putExtra("croppedImageResults", croppedImageResults),
         )
         finish()
     }
 
-    /// Finishes the activity returning an error message in intent extras.
+    // / Finishes the activity returning an error message in intent extras.
     private fun finishIntentWithError(errorMessage: String) {
         setResult(
             Activity.RESULT_OK,
-            Intent().putExtra("error", errorMessage)
+            Intent().putExtra("error", errorMessage),
         )
         finish()
     }

@@ -125,14 +125,17 @@ void main() {
         },
       );
 
-      await CunningDocumentScanner.getPictures(scannerSource: ScannerSource.gallery);
+      await CunningDocumentScanner.getPictures(
+          scannerSource: ScannerSource.gallery);
       expect(passedSource, equals('gallery'));
 
-      await CunningDocumentScanner.getPictures(scannerSource: ScannerSource.camera);
+      await CunningDocumentScanner.getPictures(
+          scannerSource: ScannerSource.camera);
       expect(passedSource, equals('camera'));
     });
 
-    testWidgets('getPictures fallback to isGalleryImportAllowed when scannerSource is null',
+    testWidgets(
+        'getPictures fallback to isGalleryImportAllowed when scannerSource is null',
         (WidgetTester tester) async {
       final List<String> fakeResult = ['fake_url'];
       MethodChannel channel = const MethodChannel('cunning_document_scanner');
