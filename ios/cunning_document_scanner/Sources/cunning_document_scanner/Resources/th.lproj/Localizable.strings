@@ -1,3 +1,7 @@
 "cunning_document_scanner_camera" = "กล้อง";
 "cunning_document_scanner_gallery" = "คลังรูปภาพ";
 "cunning_document_scanner_cancel" = "ยกเลิก";
+"cunning_document_scanner_crop_title" = "ครอบตัดหน้า %1$d จาก %2$d";
+"cunning_document_scanner_discard_title" = "ละทิ้งการเปลี่ยนแปลง?";
+"cunning_document_scanner_discard_message" = "คุณแน่ใจหรือไม่ว่าต้องการละทิ้งความคืบหน้าของคุณ?";
+"cunning_document_scanner_discard" = "ละทิ้ง";

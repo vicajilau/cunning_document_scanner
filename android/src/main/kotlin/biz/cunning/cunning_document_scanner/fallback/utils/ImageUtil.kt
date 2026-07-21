@@ -12,9 +12,11 @@ import biz.cunning.cunning_document_scanner.fallback.models.Quad
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-
+/// Helper utility class to decode, rotate, perspective-correct, and crop document images.
 class ImageUtil {
 
+    /// Loads and returns a bitmap from the specified file path, correcting rotation orientation metadata.
+    /// - filePath: The absolute file path to the source image.
     fun getImageFromFilePath(filePath: String): Bitmap? {
         val rotation = getRotationDegrees(filePath)
         val bitmap = BitmapFactory.decodeFile(filePath) ?: return null
@@ -27,6 +29,7 @@ class ImageUtil {
         }
     }
 
+    /// Resolves rotation degree properties by parsing ExifInterface headers.
     private fun getRotationDegrees(filePath: String): Int {
         val exif = ExifInterface(filePath)
         return when (exif.getAttributeInt(
@@ -40,11 +43,12 @@ class ImageUtil {
         }
     }
 
-
+    /// Crops the target photo by applying a perspective correction transformation using corner coordinates.
+    /// - photoFilePath: The file path to the source image.
+    /// - corners: Quad object representing selection corners.
     fun crop(photoFilePath: String, corners: Quad): Bitmap? {
         val bitmap = getImageFromFilePath(photoFilePath) ?: return null
 
-        // Convert Quad corners to a float array manually
         val src = floatArrayOf(
             corners.topLeftCorner.x, corners.topLeftCorner.y,
             corners.topRightCorner.x, corners.topRightCorner.y,
@@ -55,7 +59,6 @@ class ImageUtil {
         val avgWidth = getAvgWidth(corners)
         val avgHeight = getAvgHeight(corners)
 
-        // Maintain the aspect ratio based on the longer dimension
         val aspectRatio = avgWidth / avgHeight
 
         val dstWidth: Float
@@ -69,7 +72,6 @@ class ImageUtil {
             dstWidth = dstHeight * aspectRatio
         }
 
-        // Use dstWidth and dstHeight to define your dst points accordingly
         val dst = floatArrayOf(
             0f, 0f,                     // Top-left
             dstWidth, 0f,               // Top-right
@@ -80,6 +82,12 @@ class ImageUtil {
         return correctPerspective(bitmap, src, dst, dstWidth, dstHeight)
     }
 
+    /// Performs poly-to-poly matrix transform mapping to stretch/de-skew perspective quad bounds.
+    /// - b: The source bitmap.
+    /// - srcPoints: Source corner points float coordinates.
+    /// - dstPoints: Destination bounding coordinates.
+    /// - w: Output width.
+    /// - h: Output height.
     fun correctPerspective(b: Bitmap, srcPoints: FloatArray?, dstPoints: FloatArray?, w: Float, h: Float): Bitmap {
         val result = Bitmap.createBitmap(w.toInt(), h.toInt(), Bitmap.Config.ARGB_8888)
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -90,6 +98,7 @@ class ImageUtil {
         return result
     }
 
+    /// Calculates the average width between top and bottom edges.
     private fun getAvgWidth(corners: Quad): Float {
         val widthTop = sqrt(
             (corners.topRightCorner.x - corners.topLeftCorner.x).toDouble().pow(2.0) + (corners.topRightCorner.y - corners.topLeftCorner.y).toDouble()
@@ -102,6 +111,7 @@ class ImageUtil {
         return (widthTop + widthBottom) / 2
     }
 
+    /// Calculates the average height between left and right edges.
     private fun getAvgHeight(corners: Quad): Float {
         val heightLeft = sqrt(
             (corners.bottomLeftCorner.x - corners.topLeftCorner.x).toDouble().pow(2.0) + (corners.bottomLeftCorner.y - corners.topLeftCorner.y).toDouble()

@@ -1,3 +1,7 @@
 "cunning_document_scanner_camera" = "Kamera";
 "cunning_document_scanner_gallery" = "Fotoğraf Kitaplığı";
 "cunning_document_scanner_cancel" = "İptal";
+"cunning_document_scanner_crop_title" = "Sayfa %1$d / %2$d kırp";
+"cunning_document_scanner_discard_title" = "Değişiklikleri iptal et?";
+"cunning_document_scanner_discard_message" = "İlerlemenizi iptal etmek istediğinizden emin misiniz?";
+"cunning_document_scanner_discard" = "İptal et";

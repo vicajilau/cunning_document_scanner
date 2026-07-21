@@ -1,8 +1,16 @@
 package biz.cunning.cunning_document_scanner.fallback.enums
 
-/**
- * enums for all 4 quad corners
- */
+/// Enum representing the four corners of a document cropping quad.
 enum class QuadCorner {
-    TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT
+    /// Top-left corner of the crop quad.
+    TOP_LEFT, 
+    
+    /// Top-right corner of the crop quad.
+    TOP_RIGHT, 
+    
+    /// Bottom-right corner of the crop quad.
+    BOTTOM_RIGHT, 
+    
+    /// Bottom-left corner of the crop quad.
+    BOTTOM_LEFT
 }

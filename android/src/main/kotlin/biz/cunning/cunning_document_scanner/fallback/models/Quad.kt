@@ -8,24 +8,19 @@ import biz.cunning.cunning_document_scanner.fallback.extensions.move
 import biz.cunning.cunning_document_scanner.fallback.extensions.multiply
 import biz.cunning.cunning_document_scanner.fallback.extensions.toPointF
 
-/**
- * This class is used to represent the cropper. It contains 4 corners.
- *
- * @param topLeftCorner the top left corner
- * @param topRightCorner the top right corner
- * @param bottomRightCorner the bottom right corner
- * @param bottomLeftCorner the bottom left corner
- * @constructor creates a quad from Android points
- */
+/// Represents the four corners defining a cropping quadrilateral.
+///
+/// @param topLeftCorner The top-left corner coordinate.
+/// @param topRightCorner The top-right corner coordinate.
+/// @param bottomRightCorner The bottom-right corner coordinate.
+/// @param bottomLeftCorner The bottom-left corner coordinate.
 class Quad(
     val topLeftCorner: PointF,
     val topRightCorner: PointF,
     val bottomRightCorner: PointF,
     val bottomLeftCorner: PointF
 ) {
-    /**
-     * @constructor creates a quad from OpenCV points
-     */
+    /// Secondary constructor to build a Quad from OpenCV-style Point models.
     constructor(
         topLeftCorner: Point,
         topRightCorner: Point,
@@ -38,9 +33,7 @@ class Quad(
         bottomLeftCorner.toPointF()
     )
 
-    /**
-     * @property corners lets us get the point coordinates for any corner
-     */
+    /// Map associating each QuadCorner enum with its respective coordinate point.
     var corners: MutableMap<QuadCorner, PointF> = mutableMapOf(
         QuadCorner.TOP_LEFT to topLeftCorner,
         QuadCorner.TOP_RIGHT to topRightCorner,
@@ -48,9 +41,7 @@ class Quad(
         QuadCorner.BOTTOM_LEFT to bottomLeftCorner
     )
 
-    /**
-     * @property edges 4 lines that connect the 4 corners
-     */
+    /// The four lines forming the boundary edges of the crop zone quadrilateral.
     val edges: Array<Line> get() = arrayOf(
         Line(topLeftCorner, topRightCorner),
         Line(topRightCorner, bottomRightCorner),
@@ -58,36 +49,20 @@ class Quad(
         Line(bottomLeftCorner, topLeftCorner)
     )
 
-    /**
-     * This finds the corner that's closest to a point. When a user touches to drag
-     * the cropper, that point is used to determine which corner to move.
-     *
-     * @param point we want to find the corner closest to this point
-     * @return the closest corner
-     */
+    /// Returns the QuadCorner closest to the given target coordinate point.
+    /// Used to select which handle to drag during touch actions.
     fun getCornerClosestToPoint(point: PointF): QuadCorner {
         return corners.minByOrNull { corner -> corner.value.distance(point) }?.key!!
     }
 
-    /**
-     * This moves a corner by (dx, dy)
-     *
-     * @param corner the corner that needs to be moved
-     * @param dx the corner moves dx horizontally
-     * @param dy the corner moves dy vertically
-     */
+    /// Displaces the coordinate of the specified corner by a delta offset (dx, dy).
     fun moveCorner(corner: QuadCorner, dx: Float, dy: Float) {
         corners[corner]?.offset(dx, dy)
     }
 
-    /**
-     * This maps original image coordinates to preview image coordinates. The original image
-     * is probably larger than the preview image.
-     *
-     * @param imagePreviewBounds offset the point by the top left of imagePreviewBounds
-     * @param ratio multiply the point by ratio
-     * @return the 4 corners after mapping coordinates
-     */
+    /// Maps absolute source photo coordinates to scaling preview widget bounds.
+    /// - imagePreviewBounds: Display boundaries of the target preview widget.
+    /// - ratio: Image-to-preview scale multiplier factor.
     fun mapOriginalToPreviewImageCoordinates(imagePreviewBounds: RectF, ratio: Float): Quad {
         return Quad(
             topLeftCorner.multiply(ratio).move(
@@ -109,14 +84,9 @@ class Quad(
         )
     }
 
-    /**
-     * This maps preview image coordinates to original image coordinates. The original image
-     * is probably larger than the preview image.
-     *
-     * @param imagePreviewBounds reverse offset the point by the top left of imagePreviewBounds
-     * @param ratio divide the point by ratio
-     * @return the 4 corners after mapping coordinates
-     */
+    /// Maps preview coordinates back to original absolute pixel bounds.
+    /// - imagePreviewBounds: Display boundaries of the preview widget.
+    /// - ratio: Image-to-preview scale multiplier factor.
     fun mapPreviewToOriginalImageCoordinates(imagePreviewBounds: RectF, ratio: Float): Quad {
         return Quad(
             topLeftCorner.move(

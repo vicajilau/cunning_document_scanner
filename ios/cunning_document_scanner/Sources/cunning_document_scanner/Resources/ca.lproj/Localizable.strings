@@ -1,3 +1,7 @@
 "cunning_document_scanner_camera" = "Càmera";
 "cunning_document_scanner_gallery" = "Biblioteca de fotos";
 "cunning_document_scanner_cancel" = "Cancel·lar";
+"cunning_document_scanner_crop_title" = "Retallar pàgina %1$d de %2$d";
+"cunning_document_scanner_discard_title" = "Descartar els canvis?";
+"cunning_document_scanner_discard_message" = "Esteu segur que voleu descartar el vostre progrés?";
+"cunning_document_scanner_discard" = "Descartar";

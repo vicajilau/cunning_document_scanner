@@ -1,23 +1,36 @@
 import Foundation
 
+/// Defines the output image format configurations.
 enum CunningScannerImageFormat: String {
     case jpg
     case png
 }
 
+/// Defines the source to scan documents from.
 enum CunningScannerSource: String {
     case camera
     case gallery
     case cameraAndGallery = "camera_and_gallery"
 }
 
+/// A structure to hold document scanner configuration parameters.
 struct CunningScannerOptions {
+    /// Target image format (PNG or JPG).
     let imageFormat: CunningScannerImageFormat
+    
+    /// The compression quality from 0.0 to 1.0 (only applicable for JPG output).
     let jpgCompressionQuality: Double
+    
+    /// If true, outputs scanned images combined into a single PDF document.
     let asPdf: Bool
+    
+    /// Deprecated property indicating whether gallery selection is permitted.
     let isGalleryImportAllowed: Bool
+    
+    /// The target source for scanning (camera, gallery, or both).
     let scannerSource: CunningScannerSource
 
+    /// Creates scanner options with default settings.
     init() {
         self.imageFormat = .png
         self.jpgCompressionQuality = 1.0
@@ -26,6 +39,7 @@ struct CunningScannerOptions {
         self.scannerSource = .camera
     }
 
+    /// Creates scanner options with specified settings.
     init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double, asPdf: Bool, isGalleryImportAllowed: Bool, scannerSource: CunningScannerSource) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
@@ -34,6 +48,7 @@ struct CunningScannerOptions {
         self.scannerSource = scannerSource
     }
 
+    /// Factory method to build a CunningScannerOptions object from incoming Flutter MethodChannel arguments.
     static func fromArguments(args: Any?) -> CunningScannerOptions {
         guard let arguments = args as? [String: Any] else {
             return CunningScannerOptions()

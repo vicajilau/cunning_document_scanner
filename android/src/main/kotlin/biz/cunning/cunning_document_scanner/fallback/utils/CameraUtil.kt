@@ -11,60 +11,45 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.io.IOException
 
-/**
- * This class contains a helper function for opening the camera.
- *
- * @param activity current activity
- * @param onPhotoCaptureSuccess gets called with photo file path when photo is ready
- * @param onCancelPhoto gets called when user cancels out of camera
- * @constructor creates camera util
- */
+/// Helper utility class to launch the device's system camera, handle photo capture output files,
+/// and notify completion/cancel event callbacks.
+///
+/// @param activity The host ComponentActivity context.
+/// @param onPhotoCaptureSuccess Callback triggered with absolute image path on successful capture.
+/// @param onCancelPhoto Callback triggered when the user aborts/cancels image capture.
 class CameraUtil(
     private val activity: ComponentActivity,
     private val onPhotoCaptureSuccess: (photoFilePath: String) -> Unit,
     private val onCancelPhoto: () -> Unit
 ) {
-    /**
-     * @property photoFilePath the photo file path
-     */
+    /// Holds the file path target for the captured photo.
     private lateinit var photoFilePath: String
 
-    /**
-     * @property startForResult used to launch camera
-     */
+    /// ActivityResultLauncher callback handling camera capture intent results.
     private val startForResult = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result: ActivityResult ->
         when (result.resultCode) {
             Activity.RESULT_OK -> {
-                // send back photo file path on capture success
                 onPhotoCaptureSuccess(photoFilePath)
             }
             Activity.RESULT_CANCELED -> {
-                // delete the photo since the user didn't finish taking the photo
                 File(photoFilePath).delete()
                 onCancelPhoto()
             }
         }
     }
 
-    /**
-     * open the camera by launching an image capture intent
-     *
-     * @param pageNumber the current document page number
-     */
+    /// Launches an image capture intent and maps output to a temporary image file.
+    /// - pageNumber: The current page index of the document.
     @Throws(IOException::class)
     fun openCamera(pageNumber: Int) {
-        // create intent to launch camera
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
-        // create new file for photo
         val photoFile: File = FileUtil().createImageFile(activity, pageNumber)
 
-        // store the photo file path, and send it back once the photo is saved
         photoFilePath = photoFile.absolutePath
 
-        // photo gets saved to this file path
         val photoURI: Uri = FileProvider.getUriForFile(
             activity,
             "${activity.packageName}.DocumentScannerFileProvider",
@@ -72,7 +57,6 @@ class CameraUtil(
         )
         takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
 
-        // open camera
         startForResult.launch(takePictureIntent)
     }
 }

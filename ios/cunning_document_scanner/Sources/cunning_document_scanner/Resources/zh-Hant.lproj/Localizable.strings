@@ -1,3 +1,7 @@
 "cunning_document_scanner_camera" = "相機";
 "cunning_document_scanner_gallery" = "照片圖庫";
 "cunning_document_scanner_cancel" = "取消";
+"cunning_document_scanner_crop_title" = "裁剪第 %1$d 頁（共 %2$d 頁）";
+"cunning_document_scanner_discard_title" = "放棄變更嗎？";
+"cunning_document_scanner_discard_message" = "您確定要放棄目前的進度嗎？";
+"cunning_document_scanner_discard" = "放棄";

@@ -20,104 +20,62 @@ import biz.cunning.cunning_document_scanner.fallback.extensions.changeByteCountB
 import biz.cunning.cunning_document_scanner.fallback.extensions.drawQuad
 import biz.cunning.cunning_document_scanner.fallback.models.Quad
 
-/**
- * This class contains the original document photo, and a cropper. The user can drag the corners
- * to make adjustments to the detected corners.
- *
- * @param context view context
- * @param attrs view attributes
- * @constructor creates image crop view
- */
+/// Custom ImageView displaying the original document photo and an interactive cropping box.
+/// Enables users to drag crop corners to correct skewing manually.
 class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(context, attrs) {
 
-    /**
-     * @property quad the 4 document corners
-     */
+    /// The quadrilateral object representing the four corners of the cropping window.
     private var quad: Quad? = null
 
-    /**
-     * @property prevTouchPoint keep track of where the user touches, so we know how much
-     * to move corners on drag
-     */
+    /// Tracks the previous touch point coordinate to calculate displacement distances.
     private var prevTouchPoint: PointF? = null
 
-    /**
-     * @property closestCornerToTouch if the user touches close to the top left corner for
-     * example, that corner should move on drag
-     */
+    /// Identifies the corner nearest to the user's touch action being actively dragged.
     private var closestCornerToTouch: QuadCorner? = null
 
-    /**
-     * @property cropperLinesAndCornersStyles paint style for 4 corners and connecting lines
-     */
+    /// Styling paint configuration for the cropping overlay borders and lines.
     private val cropperLinesAndCornersStyles = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    /**
-     * @property cropperSelectedCornerFillStyles when you tap and drag a cropper corner the circle
-     * acts like a magnifying glass
-     */
+    /// Shader fill configurations used to draw a magnified lens over the active corner during drags.
     private val cropperSelectedCornerFillStyles = Paint()
 
-    /**
-     * @property imagePreviewHeight this is needed because height doesn't update immediately
-     * after we set the image
-     */
+    /// Internal cached height of the image preview container.
     private var imagePreviewHeight = height
 
-    /**
-     * @property imagePreviewWidth this is needed because width doesn't update immediately
-     * after we set the image
-     */
+    /// Internal cached width of the image preview container.
     private var imagePreviewWidth = width
 
-    /**
-     * @property ratio image container height to image height ratio used to map container
-     * to image coordinates and vice versa
-     */
+    /// Ratio representing the height ratio of the preview widget relative to the intrinsic drawable height.
     private val ratio: Float get() = imagePreviewBounds.height() / drawable.intrinsicHeight
 
-    /**
-     * @property corners document corners in image preview coordinates
-     */
+    /// Public getter returning current corner points in preview coordinate terms.
     val corners: Quad get() = quad!!
 
-    /**
-     * @property imagePreviewMaxSizeInBytes if the photo is too big, we need to scale it down
-     * before we display it
-     */
+    /// Maximum memory size limit in bytes before scaling down high-resolution image previews.
     private val imagePreviewMaxSizeInBytes = 100 * 1024 * 1024
 
     init {
-        // set cropper style
         cropperLinesAndCornersStyles.color = Color.WHITE
         cropperLinesAndCornersStyles.style = Paint.Style.STROKE
         cropperLinesAndCornersStyles.strokeWidth = 3f
     }
 
-    /**
-     * Initially the image preview height is 0. This calculates the height by using the photo
-     * dimensions. It maintains the photo aspect ratio (we likely need to scale the photo down
-     * to fit the preview container).
-     *
-     * @param photo the original photo with a rectangular document
-     * @param screenWidth the device width
-     */
+    /// Computes and updates layout bounds for the image preview window to maintain original aspect ratio.
+    /// - photo: The target original bitmap to render.
+    /// - screenWidth: Host device screen width parameter.
+    /// - screenHeight: Host device screen height parameter.
     fun setImagePreviewBounds(photo: Bitmap, screenWidth: Int, screenHeight: Int) {
-        // image width to height aspect ratio
         val imageRatio = photo.width.toFloat() / photo.height.toFloat()
         val buttonsViewMinHeight = context.resources.getDimension(
             R.dimen.buttons_container_min_height
         ).toInt()
 
         imagePreviewHeight = if (photo.height > photo.width) {
-            // if user takes the photo in portrait
             (screenWidth.toFloat() / imageRatio).toInt()
         } else {
-            // if user takes the photo in landscape
             (screenWidth.toFloat() * imageRatio).toInt()
         }
 
-        // set a cap on imagePreviewHeight, so that the bottom buttons container isn't hidden
         imagePreviewHeight = Integer.min(
             imagePreviewHeight,
             screenHeight - buttonsViewMinHeight
@@ -125,20 +83,15 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
 
         imagePreviewWidth = screenWidth
 
-        // image container initially has a 0 width and 0 height, calculate both and set them
         layoutParams.height = imagePreviewHeight
         layoutParams.width = imagePreviewWidth
 
-        // refresh layout after we change height
         requestLayout()
     }
 
-    /**
-     * Insert bitmap in image view, and trigger onSetImage event handler
-     */
+    /// Downscales the source image if needed to save RAM, sets it as the drawable, and updates the shader canvas.
     fun setImage(photo: Bitmap) {
         var previewImagePhoto = photo
-        // if the image is too large, we need to scale it down before displaying it
         if (photo.byteCount > imagePreviewMaxSizeInBytes) {
             previewImagePhoto = photo.changeByteCountByResizing(imagePreviewMaxSizeInBytes)
         }
@@ -146,26 +99,15 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
         this.onSetImage()
     }
 
-    /**
-     * Once the user takes a photo, we try to detect corners. This function stores them as quad.
-     *
-     * @param cropperCorners 4 corner points in original photo coordinates
-     */
+    /// Sets the current cropping corner points within this view.
     fun setCropper(cropperCorners: Quad) {
         quad = cropperCorners
     }
 
-    /**
-     * @property imagePreviewBounds image coordinates - if the image ratio is different than
-     * the image container ratio then there's blank space either at the top and bottom of the
-     * image or the left and right of the image
-     */
+    /// RectF boundaries defining the actual rendered image inside the Aspect-Fit crop container.
     val imagePreviewBounds: RectF
         get() {
-            // image container width to height ratio
             val imageViewRatio: Float = imagePreviewWidth.toFloat() / imagePreviewHeight.toFloat()
-
-            // image width to height ratio
             val imageRatio = drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight.toFloat()
 
             var left = 0f
@@ -174,14 +116,10 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
             var bottom = imagePreviewHeight.toFloat()
 
             if (imageRatio > imageViewRatio) {
-                // if the image is really wide, there's blank space at the top and bottom
                 val offset = (imagePreviewHeight - (imagePreviewWidth / imageRatio)) / 2
                 top += offset
                 bottom -= offset
             } else {
-                // if the image is really tall, there's blank space at the left and right
-                // it's also possible that the image ratio matches the image container ratio
-                // in which case there's no blank space
                 val offset = (imagePreviewWidth - (imagePreviewHeight * imageRatio)) / 2
                 left += offset
                 right -= offset
@@ -190,12 +128,7 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
             return RectF(left, top, right, bottom)
         }
 
-    /**
-     * This ensures that the user doesn't drag a corner outside the image
-     *
-     * @param point a point
-     * @return true if the point is inside the image preview container, false it's not
-     */
+    /// Verifies if a given coordinate point lies inside the valid visible preview image boundaries.
     private fun isPointInsideImage(point: PointF): Boolean {
         if (point.x >= imagePreviewBounds.left
             && point.y >= imagePreviewBounds.top
@@ -207,9 +140,7 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
         return false
     }
 
-    /**
-     * This gets called once we insert an image in this image view
-     */
+    /// Initializes a BitmapShader with the active preview drawable content to run magnifier zooms.
     private fun onSetImage() {
         cropperSelectedCornerFillStyles.style = Paint.Style.FILL
         cropperSelectedCornerFillStyles.shader = BitmapShader(
@@ -219,16 +150,11 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
         )
     }
 
-    /**
-     * This gets called constantly, and we use it to update the cropper corners
-     *
-     * @param canvas the image preview canvas
-     */
+    /// Redraws the crop quad polygon, corner circles, and the magnifying glass overlay.
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
         if (quad !== null) {
-            // draw 4 corners and connecting lines
             canvas.drawQuad(
                 quad!!,
                 resources.getDimension(R.dimen.cropper_corner_radius),
@@ -241,34 +167,23 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
                 resources.getDimension(R.dimen.cropper_selected_corner_background_magnification)
             )
         }
-
     }
 
-    /**
-     * This gets called when the user touches, drags, and stops touching screen. We use this
-     * to figure out which corner we need to move, and how far we need to move it.
-     *
-     * @param event the touch event
-     */
+    /// Processes MotionEvents to locate, drag, and release corner handles.
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // keep track of the touched point
         val touchPoint = PointF(event.x, event.y)
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // when the user touches the screen record the point, and find the closest
-                // corner to the touch point
                 prevTouchPoint = touchPoint
                 closestCornerToTouch = quad!!.getCornerClosestToPoint(touchPoint)
             }
             MotionEvent.ACTION_UP -> {
-                // when the user stops touching the screen reset these values
                 prevTouchPoint = null
                 closestCornerToTouch = null
             }
             MotionEvent.ACTION_MOVE -> {
-                // when the user drags their finger, update the closest corner position
                 val touchMoveXDistance = touchPoint.x - prevTouchPoint!!.x
                 val touchMoveYDistance = touchPoint.y - prevTouchPoint!!.y
                 val cornerNewPosition = PointF(
@@ -276,20 +191,15 @@ class ImageCropView(context: Context, attrs: AttributeSet) : AppCompatImageView(
                     quad!!.corners[closestCornerToTouch]!!.y + touchMoveYDistance
                 )
 
-                // make sure the user doesn't drag the corner outside the image preview container
                 if (isPointInsideImage(cornerNewPosition)) {
                     quad!!.moveCorner(closestCornerToTouch!!, touchMoveXDistance, touchMoveYDistance)
                 }
 
-                // record the point touched, so we can use it to calculate how far to move corner
-                // next time the user drags (assuming they don't stop touching the screen)
                 prevTouchPoint = touchPoint
             }
         }
 
-        // force refresh view
         invalidate()
-
         return true
     }
 }

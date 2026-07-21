@@ -1,3 +1,16 @@
+## 2.7.0
+### iOS
+* Added manual document cropper for gallery-imported images (`ScannerSource.gallery`), resolving the limitation where gallery images could not be manually cropped before export.
+* Implemented a circular `MagnifierView` precision zoom lens centered over handles during touch dragging, providing pixel-perfect corner positioning.
+* Added a cancel confirmation dialog to prevent accidental data loss in multi-page scanning.
+* Fixed rotate button behavior to properly map cropping coordinates 90 degrees clockwise without losing user progress.
+* Optimized image loading and processing:
+  * Offloaded heavy image orientation fixes (`fixedOrientation()`) and perspective correction filters to background threads.
+  * Wrapped background processing calls in `autoreleasepool` blocks to force immediate memory deallocation and avoid OOM crashes.
+  * Downscaled imported gallery images to a maximum of 2048px on load to prevent concurrent memory spikes.
+  * Replaced CPU-intensive rotation with instant metadata orientation changes.
+* Added translations for the new cropper discard options across all 29 localized languages.
+
 ## 2.6.0
 ### Android
 * Removed HMS (Huawei Mobile Services) support entirely to ensure 16 KB page-size compatibility on Android 15+ (fixes #146).
