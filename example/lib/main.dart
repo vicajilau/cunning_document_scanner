@@ -23,6 +23,7 @@ class _MyAppState extends State<MyApp> {
   bool _isGalleryImportAllowed = false;
   bool _useScannerSource = true;
   ScannerSource _scannerSource = ScannerSource.cameraAndGallery;
+  AndroidScannerMode _androidScannerMode = AndroidScannerMode.full;
 
   @override
   void initState() {
@@ -111,6 +112,42 @@ class _MyAppState extends State<MyApp> {
                   });
                 },
               ),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: DropdownButtonFormField<AndroidScannerMode>(
+                decoration: const InputDecoration(
+                  labelText: "Android Scanner Mode (Android Only)",
+                  border: OutlineInputBorder(),
+                ),
+                initialValue: _androidScannerMode,
+                items: AndroidScannerMode.values.map((mode) {
+                  String label = "";
+                  switch (mode) {
+                    case AndroidScannerMode.full:
+                      label = "Full (ML Enhancements & Filters)";
+                      break;
+                    case AndroidScannerMode.base:
+                      label = "Base (No Filters)";
+                      break;
+                    case AndroidScannerMode.baseWithFilter:
+                      label = "Base with Filter";
+                      break;
+                  }
+                  return DropdownMenuItem<AndroidScannerMode>(
+                    value: mode,
+                    child: Text(label),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _androidScannerMode = value;
+                    });
+                  }
+                },
+              ),
+            ),
             const SizedBox(height: 10),
             ElevatedButton(
                 onPressed: onPressed, child: const Text("Add Pictures")),
@@ -172,6 +209,7 @@ class _MyAppState extends State<MyApp> {
               scannerSource: _useScannerSource ? _scannerSource : null,
               // ignore: deprecated_member_use
               isGalleryImportAllowed: _isGalleryImportAllowed,
+              androidScannerMode: _androidScannerMode,
               asPdf: _asPdf,
               iosScannerOptions: IosScannerOptions(
                 imageFormat: IosImageFormat.jpg,

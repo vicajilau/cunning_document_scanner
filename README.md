@@ -48,6 +48,13 @@ android {
 }
 ```
 
+#### Permission Configuration
+Ensure camera permission is declared in your app's `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.CAMERA"/>
+```
+
 ### **iOS**
 
 #### Minimum Version Configuration
@@ -153,7 +160,7 @@ Add `cunning_document_scanner` as a dependency in your `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  cunning_document_scanner: ^2.2.0
+  cunning_document_scanner: ^2.7.0
 ```
 
 Or run:

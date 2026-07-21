@@ -4,12 +4,12 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'cunning_document_scanner'
-  s.version          = '1.0.0'
-  s.summary          = 'A new flutter plugin project.'
+  s.version          = '2.7.0'
+  s.summary          = 'A document scanner plugin for flutter.'
   s.description      = <<-DESC
-A new flutter plugin project.
+A document scanner plugin for flutter. Scan and crop automatically on iOS and Android.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/jachzen/cunning_document_scanner'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Cunning GmbH' => 'marcel@cunning.biz' }
   s.source           = { :path => '.' }
