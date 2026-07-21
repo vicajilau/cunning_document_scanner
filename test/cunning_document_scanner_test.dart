@@ -175,5 +175,17 @@ void main() {
       await CunningDocumentScanner.cleanCache();
       expect(cleanCacheCalled, isTrue);
     });
+
+    testWidgets('getPictures throws ArgumentError when noOfPages is <= 0',
+        (WidgetTester tester) async {
+      expect(
+        () => CunningDocumentScanner.getPictures(noOfPages: 0),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => CunningDocumentScanner.getPictures(noOfPages: -5),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
   });
 }

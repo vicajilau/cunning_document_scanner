@@ -19,7 +19,7 @@ class CunningDocumentScanner {
   ///
   /// This method will open the camera and allow the user to scan documents.
   ///
-  /// [noOfPages] is the maximum number of pages that can be scanned.
+  /// [noOfPages] is the maximum number of pages that can be scanned (must be > 0).
   /// [isGalleryImportAllowed] is deprecated, use [scannerSource] instead.
   /// [scannerSource] controls where images are sourced from (camera, gallery, or both).
   /// [androidScannerMode] controls the ML Kit scanner mode on Android only.
@@ -27,6 +27,9 @@ class CunningDocumentScanner {
   /// [asPdf] is a flag that indicates if the scanned pages should be compiled and returned as a single PDF file path.
   ///
   /// Returns a list of paths to the scanned images, or null if the user cancels the operation.
+  ///
+  /// Throws an [ArgumentError] if [noOfPages] is less than or equal to 0.
+  /// Throws a [CunningDocumentScannerException] if camera permission is denied or a scanning error occurs.
   static Future<List<String>?> getPictures({
     int noOfPages = 100,
     @Deprecated('Use scannerSource instead')
@@ -36,6 +39,14 @@ class CunningDocumentScanner {
     IosScannerOptions? iosScannerOptions,
     bool asPdf = false,
   }) async {
+    if (noOfPages <= 0) {
+      throw ArgumentError.value(
+        noOfPages,
+        'noOfPages',
+        'noOfPages must be greater than 0',
+      );
+    }
+
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       final Map<Permission, PermissionStatus> statuses = await [
         Permission.camera,
