@@ -62,6 +62,11 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
 
     /// Handles MethodChannel method calls from Dart/Flutter.
     override fun onMethodCall(call: MethodCall, result: Result) {
+        if (call.method == "cleanCache") {
+            cleanCache(result)
+            return
+        }
+
         if (call.method == "getPictures") {
             val noOfPages = call.argument<Int>("noOfPages") ?: 50
             val scannerSource = call.argument<String>("scannerSource") ?: if (call.argument<Boolean>("isGalleryImportAllowed") == true) "camera_and_gallery" else "camera"
@@ -80,6 +85,28 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
             }
         } else {
             result.notImplemented()
+        }
+    }
+
+    /// Clears temporary scan files (.jpg, .png, .pdf) created by the plugin from cacheDir and PICTURES directory.
+    private fun cleanCache(result: Result) {
+        try {
+            if (::activity.isInitialized) {
+                val picturesDir = activity.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES)
+                picturesDir?.listFiles()?.forEach { file ->
+                    if (file.name.startsWith("DOCUMENT_SCAN_") || file.name.endsWith(".jpg") || file.name.endsWith(".png") || file.name.endsWith(".pdf")) {
+                        file.delete()
+                    }
+                }
+                activity.cacheDir?.listFiles()?.forEach { file ->
+                    if (file.name.startsWith("DOCUMENT_SCAN_") || file.name.endsWith(".jpg") || file.name.endsWith(".png") || file.name.endsWith(".pdf")) {
+                        file.delete()
+                    }
+                }
+            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("CLEAN_CACHE_ERROR", e.localizedMessage, null)
         }
     }
 

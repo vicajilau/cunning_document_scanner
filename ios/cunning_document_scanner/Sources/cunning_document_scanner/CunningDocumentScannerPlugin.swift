@@ -35,8 +35,13 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
-    /// Handles incoming FlutterMethodCalls. Specifically listens to the "getPictures" method.
+    /// Handles incoming FlutterMethodCalls. Specifically listens to "getPictures" and "cleanCache" methods.
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        if call.method == "cleanCache" {
+            self.cleanCache(result: result)
+            return
+        }
+
         guard call.method == "getPictures" else {
             result(FlutterMethodNotImplemented)
             return
@@ -104,7 +109,7 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         if #available(iOS 14.0, *) {
             var configuration = PHPickerConfiguration()
             configuration.filter = .images
-            configuration.selectionLimit = 0
+            configuration.selectionLimit = scannerOptions.noOfPages
             
             let picker = PHPickerViewController(configuration: configuration)
             picker.delegate = self
@@ -114,6 +119,24 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
             picker.sourceType = .photoLibrary
             picker.delegate = self
             presentedVC?.present(picker, animated: true)
+        }
+    }
+
+    /// Clears temporary scan files (.pdf, .jpg, .png) created by the plugin from local documents directory.
+    func cleanCache(result: FlutterResult) {
+        let fileManager = FileManager.default
+        let docDir = getDocumentsDirectory()
+        do {
+            let files = try fileManager.contentsOfDirectory(atPath: docDir.path)
+            for file in files {
+                if file.hasSuffix(".pdf") || file.hasSuffix(".jpg") || file.hasSuffix(".png") {
+                    let filePath = docDir.appendingPathComponent(file)
+                    try fileManager.removeItem(at: filePath)
+                }
+            }
+            result(nil)
+        } catch {
+            result(FlutterError(code: "CLEAN_CACHE_ERROR", message: error.localizedDescription, details: nil))
         }
     }
 
@@ -189,10 +212,11 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
 
     // MARK: - VNDocumentCameraViewControllerDelegate
 
-    /// Delegate callback for camera scans. Receives pages and processes them directly.
+    /// Delegate callback for camera scans. Receives pages and processes them directly up to scannerOptions.noOfPages.
     public func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
         var images: [UIImage] = []
-        for i in 0 ..< scan.pageCount {
+        let maxPages = min(scan.pageCount, scannerOptions.noOfPages)
+        for i in 0 ..< maxPages {
             images.append(scan.imageOfPage(at: i))
         }
         processSelectedImages(images)
@@ -279,7 +303,10 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
         }
         
         dispatchGroup.notify(queue: .main) {
-            let validImages = images.filter { $0.size.width > 0 }
+            var validImages = images.filter { $0.size.width > 0 }
+            if validImages.count > self.scannerOptions.noOfPages {
+                validImages = Array(validImages.prefix(self.scannerOptions.noOfPages))
+            }
             if validImages.isEmpty {
                 picker.dismiss(animated: true) {
                     self.resultChannel?(nil)

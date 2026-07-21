@@ -6,22 +6,34 @@
 name: Flutter CI
 
 on:
+  push:
+    branches: [ "master", "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
 
       - name: Install Dependencies
         run: flutter pub get
+
+      - name: Format Check
+        run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze Project Source
         run: flutter analyze
 
       - name: Run tests
         run: flutter test
+
+      - name: SwiftLint
+        uses: norio-nomura/action-swiftlint@3.2.1
+        with:
+          args: --strict

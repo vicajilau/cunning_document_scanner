@@ -70,4 +70,9 @@ class CunningDocumentScanner {
     });
     return pictures?.map((e) => e as String).toList();
   }
+
+  /// Clears temporary scanned images and generated PDF files from cache.
+  static Future<void> cleanCache() async {
+    await _channel.invokeMethod('cleanCache');
+  }
 }

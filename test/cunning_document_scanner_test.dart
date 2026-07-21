@@ -152,5 +152,25 @@ void main() {
       await CunningDocumentScanner.getPictures(isGalleryImportAllowed: false);
       expect(passedSource, equals('camera'));
     });
+
+    testWidgets('cleanCache calls native methodChannel',
+        (WidgetTester tester) async {
+      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+
+      bool cleanCacheCalled = false;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) {
+          if (methodCall.method == 'cleanCache') {
+            cleanCacheCalled = true;
+            return Future.value(null);
+          }
+          return Future.value(null);
+        },
+      );
+
+      await CunningDocumentScanner.cleanCache();
+      expect(cleanCacheCalled, isTrue);
+    });
   });
 }
