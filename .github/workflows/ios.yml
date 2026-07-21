@@ -1,0 +1,34 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  ios:
+    name: iOS Lint & Build
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Run SwiftLint
+        run: |
+          if command -v swiftlint &> /dev/null; then
+            swiftlint lint ios
+          else
+            brew install swiftlint
+            swiftlint lint ios
+          fi
+
+      - name: Build iOS Example App
+        run: |
+          cd example
+          flutter pub get
+          flutter build ios --no-codesign --debug

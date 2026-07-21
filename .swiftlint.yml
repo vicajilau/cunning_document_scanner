@@ -1,0 +1,16 @@
+included:
+  - ios
+excluded:
+  - example
+  - Pods
+  - .build
+  - .swiftpm
+
+disabled_rules:
+  - type_body_length
+  - file_length
+  - function_body_length
+  - cyclomatic_complexity
+  - line_length
+  - identifier_name
+  - trailing_whitespace

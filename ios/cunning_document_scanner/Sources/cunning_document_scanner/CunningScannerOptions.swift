@@ -30,6 +30,9 @@ struct CunningScannerOptions {
     /// The target source for scanning (camera, gallery, or both).
     let scannerSource: CunningScannerSource
 
+    /// Maximum number of pages allowed for scanning.
+    let noOfPages: Int
+
     /// Creates scanner options with default settings.
     init() {
         self.imageFormat = .png
@@ -37,15 +40,24 @@ struct CunningScannerOptions {
         self.asPdf = false
         self.isGalleryImportAllowed = false
         self.scannerSource = .camera
+        self.noOfPages = 100
     }
 
     /// Creates scanner options with specified settings.
-    init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double, asPdf: Bool, isGalleryImportAllowed: Bool, scannerSource: CunningScannerSource) {
+    init(
+        imageFormat: CunningScannerImageFormat,
+        jpgCompressionQuality: Double,
+        asPdf: Bool,
+        isGalleryImportAllowed: Bool,
+        scannerSource: CunningScannerSource,
+        noOfPages: Int = 100
+    ) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
         self.asPdf = asPdf
         self.isGalleryImportAllowed = isGalleryImportAllowed
         self.scannerSource = scannerSource
+        self.noOfPages = noOfPages
     }
 
     /// Factory method to build a CunningScannerOptions object from incoming Flutter MethodChannel arguments.
@@ -56,8 +68,10 @@ struct CunningScannerOptions {
 
         let asPdf = (arguments["asPdf"] as? Bool) ?? false
         let isGalleryImportAllowed = (arguments["isGalleryImportAllowed"] as? Bool) ?? false
+        let noOfPages = (arguments["noOfPages"] as? Int) ?? 100
         let sourceString = arguments["scannerSource"] as? String
-        let scannerSource = CunningScannerSource(rawValue: sourceString ?? "") ?? (isGalleryImportAllowed ? .cameraAndGallery : .camera)
+        let fallbackSource: CunningScannerSource = isGalleryImportAllowed ? .cameraAndGallery : .camera
+        let scannerSource = CunningScannerSource(rawValue: sourceString ?? "") ?? fallbackSource
         
         let scannerOptionsDict = arguments["iosScannerOptions"] as? [String: Any]
         let imageFormat = (scannerOptionsDict?["imageFormat"] as? String) ?? "png"
@@ -68,7 +82,8 @@ struct CunningScannerOptions {
             jpgCompressionQuality: jpgCompressionQuality,
             asPdf: asPdf,
             isGalleryImportAllowed: isGalleryImportAllowed,
-            scannerSource: scannerSource
+            scannerSource: scannerSource,
+            noOfPages: noOfPages
         )
     }
 }

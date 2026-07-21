@@ -39,13 +39,13 @@ fun Canvas.drawQuad(
             // the cropper corner circle grows when you touch and drag it
             circleRadius = selectedCornerRadiusMagnification * pointRadius
             val matrix = Matrix()
-            matrix.postScale(ratio, ratio, ratio / cornerPoint.x, ratio /cornerPoint.y)
+            matrix.postScale(ratio, ratio, ratio / cornerPoint.x, ratio / cornerPoint.y)
             matrix.postTranslate(imagePreviewBounds.left, imagePreviewBounds.top)
             matrix.postScale(
                 selectedCornerBackgroundMagnification,
                 selectedCornerBackgroundMagnification,
                 cornerPoint.x,
-                cornerPoint.y
+                cornerPoint.y,
             )
             cropperSelectedCornerFillStyles.shader.setLocalMatrix(matrix)
             // fill selected corner circle with magnified image, so it's easier to crop
@@ -57,7 +57,7 @@ fun Canvas.drawQuad(
             cornerPoint.x,
             cornerPoint.y,
             circleRadius,
-            cropperLinesAndCornersStyles
+            cropperLinesAndCornersStyles,
         )
     }
 
@@ -75,13 +75,17 @@ fun Canvas.drawQuad(
  * @param buttonCenterY the button center y coordinate
  * @param drawable the check icon
  */
-fun Canvas.drawCheck(buttonCenterX: Float, buttonCenterY: Float, drawable: Drawable) {
+fun Canvas.drawCheck(
+    buttonCenterX: Float,
+    buttonCenterY: Float,
+    drawable: Drawable,
+) {
     val mutate = drawable.constantState?.newDrawable()?.mutate()
     mutate?.setBounds(
         (buttonCenterX - drawable.intrinsicWidth.toFloat() / 2).toInt(),
         (buttonCenterY - drawable.intrinsicHeight.toFloat() / 2).toInt(),
         (buttonCenterX + drawable.intrinsicWidth.toFloat() / 2).toInt(),
-        (buttonCenterY + drawable.intrinsicHeight.toFloat() / 2).toInt()
+        (buttonCenterY + drawable.intrinsicHeight.toFloat() / 2).toInt(),
     )
     mutate?.draw(this)
 }

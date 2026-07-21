@@ -100,6 +100,23 @@ The easiest way to get a list of images is:
    final imagesPath = await CunningDocumentScanner.getPictures();
 ```
 
+### Error Handling
+
+The plugin throws standard Dart exceptions when invalid parameters are supplied or permissions are denied:
+
+* **`ArgumentError`**: Thrown if `noOfPages` is less than or equal to `0`.
+* **`CunningDocumentScannerException`**: Thrown if camera permission is denied by the user, or if a native scanning error occurs.
+
+```dart
+try {
+  final pictures = await CunningDocumentScanner.getPictures(noOfPages: 5);
+} on ArgumentError catch (e) {
+  print("Invalid argument: $e");
+} on CunningDocumentScannerException catch (e) {
+  print("Scanner error: ${e.message}");
+}
+```
+
 ### PDF Export (Cross-Platform)
 
 You can also scan directly to a single PDF document. If `asPdf` is set to `true`, the method returns a list containing a single file path pointing to the generated PDF:

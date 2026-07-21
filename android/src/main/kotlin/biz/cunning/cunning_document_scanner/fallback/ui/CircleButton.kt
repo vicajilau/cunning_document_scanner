@@ -8,14 +8,13 @@ import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatImageButton
 import biz.cunning.cunning_document_scanner.R
 
-/// Custom circular image button that draws a white border ring.
-/// Used for helper controls like retake and add-new-photo.
+// / Custom circular image button that draws a white border ring.
+// / Used for helper controls like retake and add-new-photo.
 class CircleButton(
     context: Context,
-    attrs: AttributeSet
-): AppCompatImageButton(context, attrs) {
-    
-    /// The paint configuration for the button's outer ring.
+    attrs: AttributeSet,
+) : AppCompatImageButton(context, attrs) {
+    // / The paint configuration for the button's outer ring.
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
@@ -24,7 +23,7 @@ class CircleButton(
         ring.strokeWidth = resources.getDimension(R.dimen.small_button_ring_thickness)
     }
 
-    /// Draws the button and renders the custom circular outer ring border.
+    // / Draws the button and renders the custom circular outer ring border.
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
@@ -32,7 +31,7 @@ class CircleButton(
             (width / 2).toFloat(),
             (height / 2).toFloat(),
             (width.toFloat() - ring.strokeWidth) / 2,
-            ring
+            ring,
         )
     }
 }

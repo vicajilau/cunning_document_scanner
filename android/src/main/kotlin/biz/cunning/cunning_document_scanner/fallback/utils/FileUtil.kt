@@ -8,52 +8,59 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.Date
+import java.util.Locale
 
-/// Helper utility class to manage local file system resources, temporary files creation, and PDF compiling.
+// / Helper utility class to manage local file system resources, temporary files creation, and PDF compiling.
 class FileUtil {
-    
-    /// Generates a unique temporary image file under the application's pictures directory.
-    /// - activity: The current active host Activity.
-    /// - pageNumber: The document page number used to prefix the filename.
+    // / Generates a unique temporary image file under the application's pictures directory.
+    // / - activity: The current active host Activity.
+    // / - pageNumber: The document page number used to prefix the filename.
     @Throws(IOException::class)
-    fun createImageFile(activity: Activity, pageNumber: Int): File {
-        val dateTime: String = SimpleDateFormat(
-            "yyyyMMdd_HHmmss",
-            Locale.US
-        ).format(Date())
+    fun createImageFile(
+        activity: Activity,
+        pageNumber: Int,
+    ): File {
+        val dateTime: String =
+            SimpleDateFormat(
+                "yyyyMMdd_HHmmss",
+                Locale.US,
+            ).format(Date())
 
         val storageDir: File? = activity.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         return File.createTempFile(
-            "DOCUMENT_SCAN_${pageNumber}_${dateTime}",
+            "DOCUMENT_SCAN_${pageNumber}_$dateTime",
             ".jpg",
-            storageDir
+            storageDir,
         )
     }
 
-    /// Generates a unique temporary PDF file target under the application's pictures directory.
-    /// - activity: The current active host Activity.
+    // / Generates a unique temporary PDF file target under the application's pictures directory.
+    // / - activity: The current active host Activity.
     @Throws(IOException::class)
     fun createPdfFile(activity: Activity): File {
-        val dateTime: String = SimpleDateFormat(
-            "yyyyMMdd_HHmmss",
-            Locale.US
-        ).format(Date())
+        val dateTime: String =
+            SimpleDateFormat(
+                "yyyyMMdd_HHmmss",
+                Locale.US,
+            ).format(Date())
 
         val storageDir: File? = activity.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         return File.createTempFile(
-            "DOCUMENT_SCAN_${dateTime}",
+            "DOCUMENT_SCAN_$dateTime",
             ".pdf",
-            storageDir
+            storageDir,
         )
     }
 
-    /// Compiles a list of image paths into a single output PDF document.
-    /// - imagePaths: List of absolute image paths.
-    /// - pdfFile: The output file where the PDF will be written.
+    // / Compiles a list of image paths into a single output PDF document.
+    // / - imagePaths: List of absolute image paths.
+    // / - pdfFile: The output file where the PDF will be written.
     @Throws(IOException::class)
-    fun convertImagesToPdf(imagePaths: List<String>, pdfFile: File) {
+    fun convertImagesToPdf(
+        imagePaths: List<String>,
+        pdfFile: File,
+    ) {
         val pdfDocument = PdfDocument()
         for ((index, imagePath) in imagePaths.withIndex()) {
             val bitmap = BitmapFactory.decodeFile(imagePath) ?: continue

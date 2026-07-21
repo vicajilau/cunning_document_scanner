@@ -1,6 +1,13 @@
 ## 2.7.0
+### General
+* Added `CunningDocumentScanner.cleanCache()` to clear temporary scanned images and generated PDF files from local storage.
+* Enforced `noOfPages` page limit validation in Dart (`noOfPages > 0`), throwing an `ArgumentError` when invalid values are supplied.
+* Documented exception handling for `ArgumentError` and `CunningDocumentScannerException` in DartDoc comments and `README.md`.
+
 ### iOS
 * Added manual document cropper for gallery-imported images (`ScannerSource.gallery`), resolving the limitation where gallery images could not be manually cropped before export.
+* Implemented `noOfPages` limit handling in both `PHPickerViewController` selection limit and `VNDocumentCameraViewController`.
+* Implemented native `cleanCache` support.
 * Implemented a circular `MagnifierView` precision zoom lens centered over handles during touch dragging, providing pixel-perfect corner positioning.
 * Added a cancel confirmation dialog to prevent accidental data loss in multi-page scanning.
 * Fixed rotate button behavior to properly map cropping coordinates 90 degrees clockwise without losing user progress.
@@ -10,6 +17,9 @@
   * Downscaled imported gallery images to a maximum of 2048px on load to prevent concurrent memory spikes.
   * Replaced CPU-intensive rotation with instant metadata orientation changes.
 * Added translations for the new cropper discard options across all 29 localized languages.
+
+### Android
+* Implemented native `cleanCache` support purging `DOCUMENT_SCAN_` files from `cacheDir` and `PICTURES` directory.
 
 ## 2.6.0
 ### Android

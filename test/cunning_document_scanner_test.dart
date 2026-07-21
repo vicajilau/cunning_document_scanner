@@ -125,14 +125,17 @@ void main() {
         },
       );
 
-      await CunningDocumentScanner.getPictures(scannerSource: ScannerSource.gallery);
+      await CunningDocumentScanner.getPictures(
+          scannerSource: ScannerSource.gallery);
       expect(passedSource, equals('gallery'));
 
-      await CunningDocumentScanner.getPictures(scannerSource: ScannerSource.camera);
+      await CunningDocumentScanner.getPictures(
+          scannerSource: ScannerSource.camera);
       expect(passedSource, equals('camera'));
     });
 
-    testWidgets('getPictures fallback to isGalleryImportAllowed when scannerSource is null',
+    testWidgets(
+        'getPictures fallback to isGalleryImportAllowed when scannerSource is null',
         (WidgetTester tester) async {
       final List<String> fakeResult = ['fake_url'];
       MethodChannel channel = const MethodChannel('cunning_document_scanner');
@@ -151,6 +154,38 @@ void main() {
 
       await CunningDocumentScanner.getPictures(isGalleryImportAllowed: false);
       expect(passedSource, equals('camera'));
+    });
+
+    testWidgets('cleanCache calls native methodChannel',
+        (WidgetTester tester) async {
+      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+
+      bool cleanCacheCalled = false;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) {
+          if (methodCall.method == 'cleanCache') {
+            cleanCacheCalled = true;
+            return Future.value(null);
+          }
+          return Future.value(null);
+        },
+      );
+
+      await CunningDocumentScanner.cleanCache();
+      expect(cleanCacheCalled, isTrue);
+    });
+
+    testWidgets('getPictures throws ArgumentError when noOfPages is <= 0',
+        (WidgetTester tester) async {
+      expect(
+        () => CunningDocumentScanner.getPictures(noOfPages: 0),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => CunningDocumentScanner.getPictures(noOfPages: -5),
+        throwsA(isA<ArgumentError>()),
+      );
     });
   });
 }
