@@ -44,7 +44,14 @@ struct CunningScannerOptions {
     }
 
     /// Creates scanner options with specified settings.
-    init(imageFormat: CunningScannerImageFormat, jpgCompressionQuality: Double, asPdf: Bool, isGalleryImportAllowed: Bool, scannerSource: CunningScannerSource, noOfPages: Int = 100) {
+    init(
+        imageFormat: CunningScannerImageFormat,
+        jpgCompressionQuality: Double,
+        asPdf: Bool,
+        isGalleryImportAllowed: Bool,
+        scannerSource: CunningScannerSource,
+        noOfPages: Int = 100
+    ) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
         self.asPdf = asPdf
@@ -63,7 +70,8 @@ struct CunningScannerOptions {
         let isGalleryImportAllowed = (arguments["isGalleryImportAllowed"] as? Bool) ?? false
         let noOfPages = (arguments["noOfPages"] as? Int) ?? 100
         let sourceString = arguments["scannerSource"] as? String
-        let scannerSource = CunningScannerSource(rawValue: sourceString ?? "") ?? (isGalleryImportAllowed ? .cameraAndGallery : .camera)
+        let fallbackSource: CunningScannerSource = isGalleryImportAllowed ? .cameraAndGallery : .camera
+        let scannerSource = CunningScannerSource(rawValue: sourceString ?? "") ?? fallbackSource
         
         let scannerOptionsDict = arguments["iosScannerOptions"] as? [String: Any]
         let imageFormat = (scannerOptionsDict?["imageFormat"] as? String) ?? "png"

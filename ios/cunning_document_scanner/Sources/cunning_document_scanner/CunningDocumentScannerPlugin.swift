@@ -8,7 +8,11 @@ import PhotosUI
 
 /// Main iOS plugin class for cunning_document_scanner.
 /// Handles Flutter MethodChannel calls to launch camera or photo gallery scanning flows.
-public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCameraViewControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+public class CunningDocumentScannerPlugin: NSObject,
+    FlutterPlugin,
+    VNDocumentCameraViewControllerDelegate,
+    UIImagePickerControllerDelegate,
+    UINavigationControllerDelegate {
     
     /// The Flutter channel result callback pointer to return document paths to Dart/Flutter.
     var resultChannel: FlutterResult?
@@ -85,7 +89,9 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
             if UIDevice.current.userInterfaceIdiom == .pad,
                let popoverController = alertController.popoverPresentationController {
                 popoverController.sourceView = presentedVC?.view
-                popoverController.sourceRect = CGRect(x: presentedVC?.view.bounds.midX ?? 0, y: presentedVC?.view.bounds.midY ?? 0, width: 0, height: 0)
+                let midX = presentedVC?.view.bounds.midX ?? 0
+                let midY = presentedVC?.view.bounds.midY ?? 0
+                popoverController.sourceRect = CGRect(x: midX, y: midY, width: 0, height: 0)
                 popoverController.permittedArrowDirections = []
             }
             
@@ -100,7 +106,8 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
             presentingController?.delegate = self
             presentedVC?.present(presentingController!, animated: true)
         } else {
-            resultChannel?(FlutterError(code: "UNAVAILABLE", message: "Document camera is not available on this device", details: nil))
+            let errorMsg = "Document camera is not available on this device"
+            resultChannel?(FlutterError(code: "UNAVAILABLE", message: errorMsg, details: nil))
         }
     }
 
@@ -190,12 +197,14 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
             if pdfDocument.write(to: url) {
                 resultChannel?([url.path])
             } else {
-                resultChannel?(FlutterError(code: "ERROR", message: "Failed to generate PDF document", details: nil))
+                let err = FlutterError(code: "ERROR", message: "Failed to generate PDF document", details: nil)
+                resultChannel?(err)
             }
         } else {
             var filenames: [String] = []
             for (i, page) in images.enumerated() {
-                let url = tempDirPath.appendingPathComponent(formattedDate + "-\(i).\(scannerOptions.imageFormat.rawValue)")
+                let ext = scannerOptions.imageFormat.rawValue
+                let url = tempDirPath.appendingPathComponent("\(formattedDate)-\(i).\(ext)")
 
                 switch scannerOptions.imageFormat {
                 case .jpg:
@@ -212,8 +221,11 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
 
     // MARK: - VNDocumentCameraViewControllerDelegate
 
-    /// Delegate callback for camera scans. Receives pages and processes them directly up to scannerOptions.noOfPages.
-    public func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
+    /// Delegate callback for camera scans. Receives pages and processes them up to scannerOptions.noOfPages.
+    public func documentCameraViewController(
+        _ controller: VNDocumentCameraViewController,
+        didFinishWith scan: VNDocumentCameraScan
+    ) {
         var images: [UIImage] = []
         let maxPages = min(scan.pageCount, scannerOptions.noOfPages)
         for i in 0 ..< maxPages {
@@ -230,7 +242,10 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
     }
 
     /// Delegate callback for camera scan failures.
-    public func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
+    public func documentCameraViewController(
+        _ controller: VNDocumentCameraViewController,
+        didFailWithError error: Error
+    ) {
         resultChannel?(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
         presentingController?.dismiss(animated: true)
     }
@@ -238,7 +253,10 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
     // MARK: - UIImagePickerControllerDelegate
 
     /// Delegate callback for picking media (legacy UIImagePickerController).
-    public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+    public func imagePickerController(
+        _ picker: UIImagePickerController,
+        didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+    ) {
         guard let image = info[.originalImage] as? UIImage else {
             picker.dismiss(animated: true) {
                 self.resultChannel?(nil)
@@ -249,8 +267,8 @@ public class CunningDocumentScannerPlugin: NSObject, FlutterPlugin, VNDocumentCa
         let downscaledImage = image.downscaled(toMaxDimension: 2048)
         
         picker.dismiss(animated: true) {
-            let cropper = CunningDocumentCropperViewController(images: [downscaledImage]) { [weak self] key, defaultValue in
-                return self?.getLocalizedOption(key, defaultValue: defaultValue) ?? defaultValue
+            let cropper = CunningDocumentCropperViewController(images: [downscaledImage]) { [weak self] key, dValue in
+                return self?.getLocalizedOption(key, defaultValue: dValue) ?? dValue
             }
             cropper.delegate = self
             cropper.modalPresentationStyle = .fullScreen
@@ -283,20 +301,18 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
         let dispatchGroup = DispatchGroup()
         var images: [UIImage] = Array(repeating: UIImage(), count: results.count)
         
-        for (index, result) in results.enumerated() {
-            if result.itemProvider.canLoadObject(ofClass: UIImage.self) {
-                dispatchGroup.enter()
-                result.itemProvider.loadObject(ofClass: UIImage.self) { (object, error) in
-                    if let image = object as? UIImage {
-                        let downscaled = image.downscaled(toMaxDimension: 2048)
-                        DispatchQueue.main.async {
-                            images[index] = downscaled
-                            dispatchGroup.leave()
-                        }
-                    } else {
-                        DispatchQueue.main.async {
-                            dispatchGroup.leave()
-                        }
+        for (index, result) in results.enumerated() where result.itemProvider.canLoadObject(ofClass: UIImage.self) {
+            dispatchGroup.enter()
+            result.itemProvider.loadObject(ofClass: UIImage.self) { (object, _) in
+                if let image = object as? UIImage {
+                    let downscaled = image.downscaled(toMaxDimension: 2048)
+                    DispatchQueue.main.async {
+                        images[index] = downscaled
+                        dispatchGroup.leave()
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        dispatchGroup.leave()
                     }
                 }
             }
@@ -313,8 +329,10 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
                 }
             } else {
                 picker.dismiss(animated: true) {
-                    let cropper = CunningDocumentCropperViewController(images: validImages) { [weak self] key, defaultValue in
-                        return self?.getLocalizedOption(key, defaultValue: defaultValue) ?? defaultValue
+                    let cropper = CunningDocumentCropperViewController(
+                        images: validImages
+                    ) { [weak self] key, dValue in
+                        return self?.getLocalizedOption(key, defaultValue: dValue) ?? dValue
                     }
                     cropper.delegate = self
                     cropper.modalPresentationStyle = .fullScreen
@@ -323,6 +341,7 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
             }
         }
     }
+}
 }
 
 // MARK: - CunningDocumentCropperDelegate
