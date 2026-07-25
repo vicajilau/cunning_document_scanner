@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Kasser ændringer?";
 "cunning_document_scanner_discard_message" = "Er du sikker på, at du vil kassere dit fremskridt?";
 "cunning_document_scanner_discard" = "Kasser";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Farve";
+"cunning_document_scanner_filter_grayscale" = "Gråtoner";
+"cunning_document_scanner_filter_bw" = "S/H";

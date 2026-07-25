@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Odrzucić zmiany?";
 "cunning_document_scanner_discard_message" = "Czy na pewno chcesz odrzucić swoje postępy?";
 "cunning_document_scanner_discard" = "Odrzuć";
+
+"cunning_document_scanner_filter_original" = "Oryginał";
+"cunning_document_scanner_filter_color" = "Kolor";
+"cunning_document_scanner_filter_grayscale" = "Odcienie szarości";
+"cunning_document_scanner_filter_bw" = "Cz/B";

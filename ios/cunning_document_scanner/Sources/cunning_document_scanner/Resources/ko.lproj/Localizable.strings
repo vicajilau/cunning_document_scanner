@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "변경사항을 취소하시겠습니까?";
 "cunning_document_scanner_discard_message" = "지금까지의 진행 상황을 취소하시겠습니까?";
 "cunning_document_scanner_discard" = "취소";
+
+"cunning_document_scanner_filter_original" = "원본";
+"cunning_document_scanner_filter_color" = "컬러";
+"cunning_document_scanner_filter_grayscale" = "회색조";
+"cunning_document_scanner_filter_bw" = "흑백";

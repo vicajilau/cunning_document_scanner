@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Renunțați la modificări?";
 "cunning_document_scanner_discard_message" = "Sigur doriți să renunțați la progresul realizat?";
 "cunning_document_scanner_discard" = "Renunțare";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Culoare";
+"cunning_document_scanner_filter_grayscale" = "Tonuri de gri";
+"cunning_document_scanner_filter_bw" = "A/N";

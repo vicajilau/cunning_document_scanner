@@ -12,6 +12,32 @@ protocol CunningDocumentCropperDelegate: AnyObject {
     func didCancelCropping()
 }
 
+/// Available image filter modes for scanned document pages.
+enum DocumentFilter: Int, CaseIterable {
+    case original = 0
+    case color = 1
+    case grayscale = 2
+    case blackAndWhite = 3
+    
+    var titleKey: String {
+        switch self {
+        case .original: return "cunning_document_scanner_filter_original"
+        case .color: return "cunning_document_scanner_filter_color"
+        case .grayscale: return "cunning_document_scanner_filter_grayscale"
+        case .blackAndWhite: return "cunning_document_scanner_filter_bw"
+        }
+    }
+    
+    var defaultTitle: String {
+        switch self {
+        case .original: return "Original"
+        case .color: return "Color"
+        case .grayscale: return "Grayscale"
+        case .blackAndWhite: return "B&W"
+        }
+    }
+}
+
 /// View controller that provides an interactive multi-page document cropping interface.
 /// It displays selected images and overlays draggable handles to correct perspective skewing.
 class CunningDocumentCropperViewController: UIViewController {
@@ -36,6 +62,12 @@ class CunningDocumentCropperViewController: UIViewController {
     
     /// The top navigation bar view.
     private let topBar = UIView()
+    
+    /// The filter bar container view.
+    private let filterBar = UIView()
+    
+    /// The segmented control for selecting image filters.
+    private let filterSegmentedControl = UISegmentedControl()
     
     /// The bottom control bar view.
     private let bottomBar = UIView()
@@ -72,6 +104,9 @@ class CunningDocumentCropperViewController: UIViewController {
     /// A list mapping page indexes to their last saved/detected cropping coordinates.
     private var savedCoordinates: [PageCoordinates?] = []
     
+    /// The selected filter for each page index.
+    private var selectedFilters: [DocumentFilter] = []
+    
     /// Indicates whether the initial corner points have been set up for the current page.
     private var hasSetupPoints = false
     
@@ -97,8 +132,9 @@ class CunningDocumentCropperViewController: UIViewController {
     init(images: [UIImage], localize: @escaping (String, String) -> String) {
         self.localize = localize
         self.images = images
-        super.init(nibName: nil, bundle: nil)
         self.savedCoordinates = Array(repeating: nil, count: images.count)
+        self.selectedFilters = Array(repeating: .original, count: images.count)
+        super.init(nibName: nil, bundle: nil)
     }
     
     override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -163,6 +199,22 @@ class CunningDocumentCropperViewController: UIViewController {
         titleLabel.textAlignment = .center
         topBar.addSubview(titleLabel)
         
+        // Filter Bar configuration
+        filterBar.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        view.addSubview(filterBar)
+        
+        filterSegmentedControl.removeAllSegments()
+        for (index, filter) in DocumentFilter.allCases.enumerated() {
+            let title = localize(filter.titleKey, filter.defaultTitle)
+            filterSegmentedControl.insertSegment(withTitle: title, at: index, animated: false)
+        }
+        filterSegmentedControl.selectedSegmentIndex = 0
+        filterSegmentedControl.selectedSegmentTintColor = .systemBlue
+        filterSegmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.white], for: .selected)
+        filterSegmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.lightGray], for: .normal)
+        filterSegmentedControl.addTarget(self, action: #selector(handleFilterChanged), for: .valueChanged)
+        filterBar.addSubview(filterSegmentedControl)
+        
         // Bottom Bar configuration
         bottomBar.backgroundColor = UIColor.black.withAlphaComponent(0.6)
         view.addSubview(bottomBar)
@@ -207,6 +259,8 @@ class CunningDocumentCropperViewController: UIViewController {
         imageView.translatesAutoresizingMaskIntoConstraints = false
         overlayView.translatesAutoresizingMaskIntoConstraints = false
         topBar.translatesAutoresizingMaskIntoConstraints = false
+        filterBar.translatesAutoresizingMaskIntoConstraints = false
+        filterSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
@@ -258,9 +312,20 @@ class CunningDocumentCropperViewController: UIViewController {
             rotateButton.widthAnchor.constraint(equalToConstant: 44),
             rotateButton.heightAnchor.constraint(equalToConstant: 44),
             
-            // Image View (fills space between top and bottom bar)
+            // Filter Bar
+            filterBar.bottomAnchor.constraint(equalTo: bottomBar.topAnchor),
+            filterBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            filterBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            filterBar.heightAnchor.constraint(equalToConstant: 44),
+            
+            filterSegmentedControl.centerXAnchor.constraint(equalTo: filterBar.centerXAnchor),
+            filterSegmentedControl.centerYAnchor.constraint(equalTo: filterBar.centerYAnchor),
+            filterSegmentedControl.leadingAnchor.constraint(equalTo: filterBar.leadingAnchor, constant: 15),
+            filterSegmentedControl.trailingAnchor.constraint(equalTo: filterBar.trailingAnchor, constant: -15),
+            
+            // Image View (fills space between top and filter bar)
             imageView.topAnchor.constraint(equalTo: topBar.bottomAnchor),
-            imageView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: filterBar.topAnchor),
             imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             
@@ -270,6 +335,23 @@ class CunningDocumentCropperViewController: UIViewController {
             overlayView.leadingAnchor.constraint(equalTo: imageView.leadingAnchor),
             overlayView.trailingAnchor.constraint(equalTo: imageView.trailingAnchor)
         ])
+    }
+    
+    /// Responds to changes in the filter segmented control.
+    @objc private func handleFilterChanged(_ sender: UISegmentedControl) {
+        guard currentIndex < images.count, let currentImage = self.currentNormalizedImage else { return }
+        guard let filter = DocumentFilter(rawValue: sender.selectedSegmentIndex) else { return }
+        selectedFilters[currentIndex] = filter
+        
+        let filterToApply = filter
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let filtered = self.applyFilter(filterToApply, to: currentImage)
+            DispatchQueue.main.async {
+                guard self.currentIndex < self.images.count else { return }
+                self.imageView.image = filtered
+            }
+        }
     }
     
     /// Loads and processes the image corresponding to the current index.
@@ -285,6 +367,7 @@ class CunningDocumentCropperViewController: UIViewController {
         rotateButton.isEnabled = false
         cancelButton.isEnabled = false
         backButton.isEnabled = false
+        filterSegmentedControl.isEnabled = false
         
         // Update Title and Done Button Label
         let pageNum = currentIndex + 1
@@ -299,8 +382,13 @@ class CunningDocumentCropperViewController: UIViewController {
         doneButton.tintColor = .white
         doneButton.backgroundColor = .systemBlue
         
+        // Restore selected filter segment index
+        filterSegmentedControl.selectedSegmentIndex = selectedFilters[currentIndex].rawValue
+        
         // Show/hide back button based on page index
         backButton.isHidden = (currentIndex == 0)
+        
+        let currentFilter = selectedFilters[currentIndex]
         
         // Perform fixedOrientation on a background thread with an autoreleasepool to save memory
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -322,17 +410,20 @@ class CunningDocumentCropperViewController: UIViewController {
                     self.doneButton.isEnabled = true
                     self.rotateButton.isEnabled = true
                     self.cancelButton.isEnabled = true
+                    self.filterSegmentedControl.isEnabled = true
                     self.backButton.isEnabled = !self.backButton.isHidden
                     return
                 }
                 
                 self.currentNormalizedImage = resolvedImage
-                self.imageView.image = resolvedImage
+                let filteredPreview = self.applyFilter(currentFilter, to: resolvedImage)
+                self.imageView.image = filteredPreview
                 
                 self.activityIndicator.stopAnimating()
                 self.doneButton.isEnabled = true
                 self.rotateButton.isEnabled = true
                 self.cancelButton.isEnabled = true
+                self.filterSegmentedControl.isEnabled = true
                 self.backButton.isEnabled = !self.backButton.isHidden
                 
                 // Restore coordinates if previously saved, otherwise run auto-detection
@@ -466,7 +557,10 @@ class CunningDocumentCropperViewController: UIViewController {
         doneButton.isEnabled = false
         rotateButton.isEnabled = false
         backButton.isEnabled = false
+        filterSegmentedControl.isEnabled = false
         activityIndicator.startAnimating()
+        
+        let currentFilter = selectedFilters[currentIndex]
         
         // Crop the current image on a background thread
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -483,22 +577,25 @@ class CunningDocumentCropperViewController: UIViewController {
                 )
             }
             
-            let finalImage: UIImage
+            let baseImage: UIImage
             if let cropped = cropped {
-                finalImage = cropped
+                baseImage = cropped
             } else {
                 // Fallback to original image with orientation fixed/baked in
                 var fixed: UIImage?
                 autoreleasepool {
                     fixed = currentImage.fixedOrientation()
                 }
-                finalImage = fixed ?? currentImage
+                baseImage = fixed ?? currentImage
             }
+            
+            let finalImage = self.applyFilter(currentFilter, to: baseImage)
             
             DispatchQueue.main.async {
                 self.cancelButton.isEnabled = true
                 self.doneButton.isEnabled = true
                 self.rotateButton.isEnabled = true
+                self.filterSegmentedControl.isEnabled = true
                 self.backButton.isEnabled = true
                 self.activityIndicator.stopAnimating()
                 
@@ -522,7 +619,8 @@ class CunningDocumentCropperViewController: UIViewController {
         if let rotated = currentImage.rotated90Clockwise() {
             self.images[currentIndex] = rotated
             self.currentNormalizedImage = rotated
-            self.imageView.image = rotated
+            let currentFilter = self.selectedFilters[self.currentIndex]
+            self.imageView.image = self.applyFilter(currentFilter, to: rotated)
             
             // Rotate the normalized coordinates 90 degrees clockwise:
             // x' = y
@@ -594,5 +692,55 @@ class CunningDocumentCropperViewController: UIViewController {
         guard let cgImage = self.ciContext.createCGImage(outputImage, from: outputImage.extent) else { return nil }
         
         return UIImage(cgImage: cgImage)
+    }
+    
+    /// Applies the requested DocumentFilter to an image using CoreImage filters.
+    private func applyFilter(_ filter: DocumentFilter, to image: UIImage) -> UIImage {
+        guard filter != .original else { return image }
+        guard let ciImage = CIImage(image: image) ?? (image.cgImage != nil ? CIImage(cgImage: image.cgImage!) : nil) else {
+            return image
+        }
+        
+        let outputCIImage: CIImage
+        switch filter {
+        case .original:
+            return image
+        case .color:
+            if let colorFilter = CIFilter(name: "CIColorControls") {
+                colorFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                colorFilter.setValue(1.15, forKey: kCIInputContrastKey)
+                colorFilter.setValue(1.2, forKey: kCIInputSaturationKey)
+                colorFilter.setValue(0.03, forKey: kCIInputBrightnessKey)
+                outputCIImage = colorFilter.outputImage ?? ciImage
+            } else {
+                outputCIImage = ciImage
+            }
+        case .grayscale:
+            if let monoFilter = CIFilter(name: "CIPhotoEffectMono") {
+                monoFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                outputCIImage = monoFilter.outputImage ?? ciImage
+            } else if let colorFilter = CIFilter(name: "CIColorControls") {
+                colorFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                colorFilter.setValue(0.0, forKey: kCIInputSaturationKey)
+                outputCIImage = colorFilter.outputImage ?? ciImage
+            } else {
+                outputCIImage = ciImage
+            }
+        case .blackAndWhite:
+            if let colorFilter = CIFilter(name: "CIColorControls") {
+                colorFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                colorFilter.setValue(0.0, forKey: kCIInputSaturationKey)
+                colorFilter.setValue(1.8, forKey: kCIInputContrastKey)
+                colorFilter.setValue(0.05, forKey: kCIInputBrightnessKey)
+                outputCIImage = colorFilter.outputImage ?? ciImage
+            } else {
+                outputCIImage = ciImage
+            }
+        }
+        
+        guard let cgImage = self.ciContext.createCGImage(outputCIImage, from: outputCIImage.extent) else {
+            return image
+        }
+        return UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation)
     }
 }

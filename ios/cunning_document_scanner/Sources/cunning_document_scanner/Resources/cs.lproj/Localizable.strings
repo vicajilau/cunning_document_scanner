@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Zahodit změny?";
 "cunning_document_scanner_discard_message" = "Opravdu chcete zahodit svůj postup?";
 "cunning_document_scanner_discard" = "Zahodit";
+
+"cunning_document_scanner_filter_original" = "Originál";
+"cunning_document_scanner_filter_color" = "Barevně";
+"cunning_document_scanner_filter_grayscale" = "Stupně šedi";
+"cunning_document_scanner_filter_bw" = "ČB";

@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Hủy bỏ các thay đổi?";
 "cunning_document_scanner_discard_message" = "Bạn có chắc chắn muốn hủy bỏ tiến trình của mình không?";
 "cunning_document_scanner_discard" = "Hủy bỏ";
+
+"cunning_document_scanner_filter_original" = "Gốc";
+"cunning_document_scanner_filter_color" = "Màu";
+"cunning_document_scanner_filter_grayscale" = "Mức xám";
+"cunning_document_scanner_filter_bw" = "Trắng đen";

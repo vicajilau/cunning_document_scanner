@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Değişiklikleri iptal et?";
 "cunning_document_scanner_discard_message" = "İlerlemenizi iptal etmek istediğinizden emin misiniz?";
 "cunning_document_scanner_discard" = "İptal et";
+
+"cunning_document_scanner_filter_original" = "Orijinal";
+"cunning_document_scanner_filter_color" = "Renkli";
+"cunning_document_scanner_filter_grayscale" = "Gri Tonlama";
+"cunning_document_scanner_filter_bw" = "S/B";

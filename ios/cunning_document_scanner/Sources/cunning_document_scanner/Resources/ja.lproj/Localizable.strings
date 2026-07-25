@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "変更を破棄しますか？";
 "cunning_document_scanner_discard_message" = "これまでの進行状況を破棄してもよろしいですか？";
 "cunning_document_scanner_discard" = "破棄";
+
+"cunning_document_scanner_filter_original" = "オリジナル";
+"cunning_document_scanner_filter_color" = "カラー";
+"cunning_document_scanner_filter_grayscale" = "グレースケール";
+"cunning_document_scanner_filter_bw" = "白黒";

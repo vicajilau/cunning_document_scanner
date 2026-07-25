@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Forkast endringer?";
 "cunning_document_scanner_discard_message" = "Er du sikker på at du vil forkaste fremgangen din?";
 "cunning_document_scanner_discard" = "Forkast";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Farge";
+"cunning_document_scanner_filter_grayscale" = "Gråtone";
+"cunning_document_scanner_filter_bw" = "S/H";

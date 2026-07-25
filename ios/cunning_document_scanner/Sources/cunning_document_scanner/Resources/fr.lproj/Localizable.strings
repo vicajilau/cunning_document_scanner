@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Abandonner les modifications ?";
 "cunning_document_scanner_discard_message" = "Voulez-vous vraiment abandonner votre progression ?";
 "cunning_document_scanner_discard" = "Abandonner";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Couleur";
+"cunning_document_scanner_filter_grayscale" = "Niveaux de gris";
+"cunning_document_scanner_filter_bw" = "N&B";
