@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Сбросить изменения?";
 "cunning_document_scanner_discard_message" = "Вы уверены, что хотите сбросить свой прогресс?";
 "cunning_document_scanner_discard" = "Сбросить";
+
+"cunning_document_scanner_filter_original" = "Оригинал";
+"cunning_document_scanner_filter_color" = "Цвет";
+"cunning_document_scanner_filter_grayscale" = "Оттенки серого";
+"cunning_document_scanner_filter_bw" = "Ч/Б";

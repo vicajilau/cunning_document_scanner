@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Annullare le modifiche?";
 "cunning_document_scanner_discard_message" = "Sei sicuro di voler annullare i tuoi progressi?";
 "cunning_document_scanner_discard" = "Annulla";
+
+"cunning_document_scanner_filter_original" = "Originale";
+"cunning_document_scanner_filter_color" = "Colore";
+"cunning_document_scanner_filter_grayscale" = "Scala di grigi";
+"cunning_document_scanner_filter_bw" = "B/N";

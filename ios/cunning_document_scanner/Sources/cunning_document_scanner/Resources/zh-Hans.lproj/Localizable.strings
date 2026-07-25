@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "放弃更改吗？";
 "cunning_document_scanner_discard_message" = "您确定要放弃当前的进度吗？";
 "cunning_document_scanner_discard" = "放弃";
+
+"cunning_document_scanner_filter_original" = "原图";
+"cunning_document_scanner_filter_color" = "彩色";
+"cunning_document_scanner_filter_grayscale" = "灰度";
+"cunning_document_scanner_filter_bw" = "黑白";

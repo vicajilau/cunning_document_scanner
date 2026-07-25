@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Descartar els canvis?";
 "cunning_document_scanner_discard_message" = "Esteu segur que voleu descartar el vostre progrés?";
 "cunning_document_scanner_discard" = "Descartar";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Color";
+"cunning_document_scanner_filter_grayscale" = "Escala de grisos";
+"cunning_document_scanner_filter_bw" = "B/N";

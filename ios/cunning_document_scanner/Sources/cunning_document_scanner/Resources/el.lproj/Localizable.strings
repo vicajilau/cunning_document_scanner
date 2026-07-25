@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Απόρριψη αλλαγών;";
 "cunning_document_scanner_discard_message" = "Είστε βέβαιοι ότι θέλετε να απορρίψετε την πρόοδό σας;";
 "cunning_document_scanner_discard" = "Απόρριψη";
+
+"cunning_document_scanner_filter_original" = "Αρχικό";
+"cunning_document_scanner_filter_color" = "Έγχρωμο";
+"cunning_document_scanner_filter_grayscale" = "Κλίμακα γκρι";
+"cunning_document_scanner_filter_bw" = "A/M";

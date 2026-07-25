@@ -1,3 +1,7 @@
+## 2.8.0
+### iOS
+* Added document image filter options (**Original**, **Color**, **Grayscale**, **B&W**) to the custom document cropper (`CunningDocumentCropperViewController`) when importing images from the gallery, achieving feature parity with Android ML Kit (fixes #153).
+
 ## 2.7.0
 ### General
 * Added `CunningDocumentScanner.cleanCache()` to clear temporary scanned images and generated PDF files from local storage.

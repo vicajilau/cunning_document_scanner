@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Hylätäänkö muutokset?";
 "cunning_document_scanner_discard_message" = "Haluatko varmasti hylätä edistymisesi?";
 "cunning_document_scanner_discard" = "Hylkää";
+
+"cunning_document_scanner_filter_original" = "Alkuperäinen";
+"cunning_document_scanner_filter_color" = "Väri";
+"cunning_document_scanner_filter_grayscale" = "Harmaasävy";
+"cunning_document_scanner_filter_bw" = "M/V";

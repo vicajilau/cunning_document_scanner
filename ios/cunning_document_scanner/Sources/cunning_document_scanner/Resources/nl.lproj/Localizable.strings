@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Wijzigingen weggooien?";
 "cunning_document_scanner_discard_message" = "Weet u zeker dat u uw voortgang wilt weggooien?";
 "cunning_document_scanner_discard" = "Weggooien";
+
+"cunning_document_scanner_filter_original" = "Origineel";
+"cunning_document_scanner_filter_color" = "Kleur";
+"cunning_document_scanner_filter_grayscale" = "Grijswaarden";
+"cunning_document_scanner_filter_bw" = "Z/W";

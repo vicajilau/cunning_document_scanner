@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "ละทิ้งการเปลี่ยนแปลง?";
 "cunning_document_scanner_discard_message" = "คุณแน่ใจหรือไม่ว่าต้องการละทิ้งความคืบหน้าของคุณ?";
 "cunning_document_scanner_discard" = "ละทิ้ง";
+
+"cunning_document_scanner_filter_original" = "ต้นฉบับ";
+"cunning_document_scanner_filter_color" = "สี";
+"cunning_document_scanner_filter_grayscale" = "ขาวดำ";
+"cunning_document_scanner_filter_bw" = "ขาวดำ";

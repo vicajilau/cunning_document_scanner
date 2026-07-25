@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Forkasta ändringar?";
 "cunning_document_scanner_discard_message" = "Är du säker på att du vil forkasta dina framsteg?";
 "cunning_document_scanner_discard" = "Forkasta";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Färg";
+"cunning_document_scanner_filter_grayscale" = "Gråskala";
+"cunning_document_scanner_filter_bw" = "S/V";

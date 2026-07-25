@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Änderungen verwerfen?";
 "cunning_document_scanner_discard_message" = "Sind Sie sicher, dass Sie Ihren Fortschritt verwerfen möchten?";
 "cunning_document_scanner_discard" = "Verwerfen";
+
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Farbe";
+"cunning_document_scanner_filter_grayscale" = "Graustufen";
+"cunning_document_scanner_filter_bw" = "S/W";

@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Discard changes?";
 "cunning_document_scanner_discard_message" = "Are you sure you want to discard your progress?";
 "cunning_document_scanner_discard" = "Discard";
+"cunning_document_scanner_filter_original" = "Original";
+"cunning_document_scanner_filter_color" = "Color";
+"cunning_document_scanner_filter_grayscale" = "Grayscale";
+"cunning_document_scanner_filter_bw" = "B&W";
+

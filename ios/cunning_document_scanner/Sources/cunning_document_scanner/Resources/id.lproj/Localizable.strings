@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "Buang perubahan?";
 "cunning_document_scanner_discard_message" = "Apakah Anda yakin ingin membuang kemajuan Anda?";
 "cunning_document_scanner_discard" = "Buang";
+
+"cunning_document_scanner_filter_original" = "Asli";
+"cunning_document_scanner_filter_color" = "Warna";
+"cunning_document_scanner_filter_grayscale" = "Skala Abu-abu";
+"cunning_document_scanner_filter_bw" = "Hitam Putih";

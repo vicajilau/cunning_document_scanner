@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "למחוק את השינויים?";
 "cunning_document_scanner_discard_message" = "האם אתה בטוח שברצונך למחוק את ההתקדמות שלך?";
 "cunning_document_scanner_discard" = "למחוק";
+
+"cunning_document_scanner_filter_original" = "מקורי";
+"cunning_document_scanner_filter_color" = "צבע";
+"cunning_document_scanner_filter_grayscale" = "גווני אפור";
+"cunning_document_scanner_filter_bw" = "שחור-לבן";

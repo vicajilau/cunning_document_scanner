@@ -5,3 +5,8 @@
 "cunning_document_scanner_discard_title" = "बदलावों को खारिज करें?";
 "cunning_document_scanner_discard_message" = "क्या आप वाकई अपनी प्रगति को खारिज करना चाहते हैं?";
 "cunning_document_scanner_discard" = "खारिज करें";
+
+"cunning_document_scanner_filter_original" = "मूल";
+"cunning_document_scanner_filter_color" = "रंग";
+"cunning_document_scanner_filter_grayscale" = "ग्रेस्केल";
+"cunning_document_scanner_filter_bw" = "श्वेत-श्याम";
