@@ -253,6 +253,48 @@ If you want to contribute to this plugin or run the example app locally:
    flutter run
    ```
 
+## Naming Conventions
+
+These rules exist because a Flutter plugin's native resources do not live in a namespace of their own — they are merged into whatever application installs the plugin.
+
+### Android resources
+
+**Every resource must start with `cunning_`.** This covers strings, colors, dimens, integers, styles, view IDs, and the file names of layouts, drawables, animators and XML resources.
+
+```xml
+<!-- Correct -->
+<string name="cunning_crop_page_progress">Crop Page %1$d of %2$d</string>
+<color name="cunning_black">#000000</color>
+
+<!-- Wrong: collides with the host application -->
+<string name="crop_page_progress">Crop Page %1$d of %2$d</string>
+<color name="black">#000000</color>
+```
+
+The reason is that Android merges a library's resources into the application's resource table, and **on a name collision the application's value wins**. An app declaring something as ordinary as `<color name="black">` would silently restyle this plugin's scanner. The rule is enforced by `resourcePrefix = "cunning_"` in [`android/build.gradle.kts`](android/build.gradle.kts), so AGP flags any resource that forgets it.
+
+Framework attributes inside a style (`<item name="android:windowFullscreen">`) are attribute references, not resources, and are left alone.
+
+### iOS localization keys
+
+Keys in `Localizable.strings` are prefixed `cunning_document_scanner_`, for the same reason: the plugin looks the key up in the host application's main bundle first, so that an app can override any string it wants, and only falls back to its own bundle.
+
+```
+"cunning_document_scanner_crop_title" = "Crop Page %1$d of %2$d";
+```
+
+### Adding or changing a user-visible string
+
+Both platforms ship the same 31 languages and are expected to stay in step:
+
+1. Add the key to `ios/.../Resources/en.lproj/Localizable.strings` and to **all** the other `*.lproj` files.
+2. Add the matching `cunning_`-prefixed string to `android/src/main/res/values/strings.xml` and to **all** the `values-*/strings.xml` files.
+3. Use positional format specifiers (`%1$d`, `%2$d`) so both platforms can share the same wording, and so translators can reorder them.
+
+Android resolves the language from the device automatically. iOS requires the host application to opt in, as described in the [Localization Configuration](#localization-configuration) section above.
+
+Hebrew and Indonesian use the legacy Android qualifiers `values-iw` and `values-in`, and Chinese uses BCP47 script tags (`values-b+zh+Hans`, `values-b+zh+Hant`) so the variant is chosen by script rather than by country.
+
 ## Contributions
 
 Contributions are welcome. If you want to contribute to the development of Cunning Document Scanner, follow these steps:

@@ -78,7 +78,7 @@ class DocumentScannerActivity : AppCompatActivity() {
 
                 // Hide the add-new-photo button if the documents count reaches max limit minus one
                 if (documents.size == maxNumDocuments - 1) {
-                    val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
+                    val newPhotoButton: ImageButton = findViewById(R.id.cunning_new_photo_button)
                     newPhotoButton.isClickable = false
                     newPhotoButton.visibility = View.INVISIBLE
                 }
@@ -152,10 +152,10 @@ class DocumentScannerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setContentView(R.layout.activity_image_crop)
-        imageView = findViewById(R.id.image_view)
-        pageProgressLabel = findViewById(R.id.page_progress_label)
-        loadingIndicator = findViewById(R.id.loading_indicator)
+        setContentView(R.layout.cunning_activity_image_crop)
+        imageView = findViewById(R.id.cunning_image_view)
+        pageProgressLabel = findViewById(R.id.cunning_page_progress_label)
+        loadingIndicator = findViewById(R.id.cunning_loading_indicator)
 
         try {
             var userSpecifiedMaxImages: Int? = null
@@ -185,9 +185,9 @@ class DocumentScannerActivity : AppCompatActivity() {
             return
         }
 
-        newPhotoButton = findViewById(R.id.new_photo_button)
-        completeDocumentScanButton = findViewById(R.id.complete_document_scan_button)
-        retakePhotoButton = findViewById(R.id.retake_photo_button)
+        newPhotoButton = findViewById(R.id.cunning_new_photo_button)
+        completeDocumentScanButton = findViewById(R.id.cunning_complete_document_scan_button)
+        retakePhotoButton = findViewById(R.id.cunning_retake_photo_button)
 
         newPhotoButton.onClick { onClickNew() }
         completeDocumentScanButton.onClick { onClickDone() }
@@ -223,7 +223,7 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
 
         pageProgressLabel.visibility = View.VISIBLE
-        pageProgressLabel.text = getString(R.string.crop_page_progress, documents.size + 1, total)
+        pageProgressLabel.text = getString(R.string.cunning_crop_page_progress, documents.size + 1, total)
     }
 
     // / Reads the gallery image URIs to crop from the intent.

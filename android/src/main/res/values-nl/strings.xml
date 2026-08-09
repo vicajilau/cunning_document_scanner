@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="image_with_cropper">Originele afbeelding met bijsnijdgereedschap</string>
+    <string name="cunning_image_with_cropper">Originele afbeelding met bijsnijdgereedschap</string>
     <!-- Shown while cropping a batch of imported images. %1$d is the current page, %2$d the total. -->
-    <string name="crop_page_progress">Pagina %1$d van %2$d bijsnijden</string>
+    <string name="cunning_crop_page_progress">Pagina %1$d van %2$d bijsnijden</string>
 </resources>

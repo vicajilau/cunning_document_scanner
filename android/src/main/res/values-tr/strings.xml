@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="image_with_cropper">Kırpma aracıyla orijinal görüntü</string>
+    <string name="cunning_image_with_cropper">Kırpma aracıyla orijinal görüntü</string>
     <!-- Shown while cropping a batch of imported images. %1$d is the current page, %2$d the total. -->
-    <string name="crop_page_progress">Sayfa %1$d / %2$d kırp</string>
+    <string name="cunning_crop_page_progress">Sayfa %1$d / %2$d kırp</string>
 </resources>

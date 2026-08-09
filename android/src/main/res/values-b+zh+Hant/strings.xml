@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="image_with_cropper">帶裁剪工具的原始圖像</string>
+    <string name="cunning_image_with_cropper">帶裁剪工具的原始圖像</string>
     <!-- Shown while cropping a batch of imported images. %1$d is the current page, %2$d the total. -->
-    <string name="crop_page_progress">裁剪第 %1$d 頁（共 %2$d 頁）</string>
+    <string name="cunning_crop_page_progress">裁剪第 %1$d 頁（共 %2$d 頁）</string>
 </resources>

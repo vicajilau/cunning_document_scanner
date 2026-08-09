@@ -17,6 +17,12 @@ configure<LibraryExtension> {
     namespace = "biz.cunning.cunning_document_scanner"
     compileSdk = 34
 
+    // A library's resources are merged into the host application's resource table, and on a
+    // name collision the application wins. Without a prefix an app declaring something as
+    // ordinary as `<color name="black">` would silently restyle this plugin's scanner.
+    // AGP flags any resource added here that does not carry the prefix.
+    resourcePrefix = "cunning_"
+
     defaultConfig {
         minSdk = 21
     }

@@ -20,7 +20,7 @@ class CircleButton(
     init {
         ring.color = Color.WHITE
         ring.style = Paint.Style.STROKE
-        ring.strokeWidth = resources.getDimension(R.dimen.small_button_ring_thickness)
+        ring.strokeWidth = resources.getDimension(R.dimen.cunning_small_button_ring_thickness)
     }
 
     // / Draws the button and renders the custom circular outer ring border.

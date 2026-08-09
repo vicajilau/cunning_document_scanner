@@ -24,9 +24,9 @@ class DoneButton(
     init {
         ring.color = Color.WHITE
         ring.style = Paint.Style.STROKE
-        ring.strokeWidth = resources.getDimension(R.dimen.large_button_ring_thickness)
+        ring.strokeWidth = resources.getDimension(R.dimen.cunning_large_button_ring_thickness)
 
-        circle.color = ContextCompat.getColor(context, R.color.done_button_inner_circle_color)
+        circle.color = ContextCompat.getColor(context, R.color.cunning_done_button_inner_circle_color)
         circle.style = Paint.Style.FILL
     }
 
@@ -40,7 +40,7 @@ class DoneButton(
         val innerRadius =
             outerRadius -
                 resources.getDimension(
-                    R.dimen.large_button_outer_ring_offset,
+                    R.dimen.cunning_large_button_outer_ring_offset,
                 )
 
         canvas.drawCircle(centerX, centerY, outerRadius, ring)
