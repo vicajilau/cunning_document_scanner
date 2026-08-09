@@ -3,6 +3,7 @@ package biz.cunning.cunning_document_scanner
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import android.net.Uri
@@ -51,6 +52,10 @@ class CunningDocumentScannerPlugin :
     // / The current Android activity instance, or null while detached.
     private var activity: Activity? = null
 
+    // / Application context, available for as long as the plugin is attached to the engine.
+    // / Used for work that needs no Activity, so it keeps working while detached.
+    private var applicationContext: Context? = null
+
     // / The MethodChannel that handles communication between Flutter and native Android.
     private lateinit var channel: MethodChannel
 
@@ -66,6 +71,7 @@ class CunningDocumentScannerPlugin :
 
     // / Called when the plugin is attached to the Flutter Engine.
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        applicationContext = flutterPluginBinding.applicationContext
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "cunning_document_scanner")
         channel.setMethodCallHandler(this)
     }
@@ -138,15 +144,18 @@ class CunningDocumentScannerPlugin :
     // / `cacheDir` and the pictures directory are shared with the host application, and
     // / deleting every image or PDF found there would destroy the host application's data.
     private fun cleanCache(result: Result) {
-        val currentActivity = activity
-        if (currentActivity == null) {
-            result.error("NO_ACTIVITY", "Plugin is not attached to an Activity", null)
+        // Only Context methods are needed here, so the application context is used rather
+        // than the Activity: cleaning the cache on startup, before any Activity is
+        // attached, is a legitimate call and used to fail for no technical reason.
+        val context = applicationContext
+        if (context == null) {
+            result.error("NO_CONTEXT", "Plugin is not attached to the Flutter engine", null)
             return
         }
 
         try {
-            val picturesDir = currentActivity.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES)
-            listOfNotNull(picturesDir, currentActivity.cacheDir).forEach { dir ->
+            val picturesDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES)
+            listOfNotNull(picturesDir, context.cacheDir).forEach { dir ->
                 dir.listFiles()?.forEach { file ->
                     if (ScannerArguments.isPluginScanFile(file.name)) {
                         file.delete()
@@ -162,6 +171,7 @@ class CunningDocumentScannerPlugin :
     // / Called when the plugin is detached from the Flutter Engine.
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        applicationContext = null
     }
 
     // / Called when the plugin is attached to the host Activity.
