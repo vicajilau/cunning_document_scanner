@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cunning_image_with_cropper">자르기 도구가 있는 원본 이미지</string>
+    <!-- Shown while cropping a batch of imported images. %1$d is the current page, %2$d the total. -->
+    <string name="cunning_crop_page_progress">%2$d페이지 중 %1$d페이지 자르기</string>
+</resources>

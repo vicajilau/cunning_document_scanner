@@ -5,7 +5,7 @@
             android:name=".fallback.DocumentScannerActivity"
             android:configChanges="orientation|screenSize"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.FullScreen" />
+            android:theme="@style/cunning_theme_fullscreen" />
 
         <provider
             android:name="biz.cunning.cunning_document_scanner.fallback.DocumentScannerFileProvider"
@@ -14,7 +14,7 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+                android:resource="@xml/cunning_file_paths" />
         </provider>
     </application>
 </manifest>

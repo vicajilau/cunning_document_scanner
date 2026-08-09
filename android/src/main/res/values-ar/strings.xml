@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cunning_image_with_cropper">الصورة الأصلية مع أداة القص</string>
+    <!-- Shown while cropping a batch of imported images. %1$d is the current page, %2$d the total. -->
+    <string name="cunning_crop_page_progress">قص الصفحة %1$d من %2$d</string>
+</resources>

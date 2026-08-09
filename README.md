@@ -25,6 +25,9 @@ Cunning Document Scanner is a Flutter-based document scanner application that en
 
 A state of the art document scanner with automatic cropping function.
 
+> [!NOTE]
+> Automatic edge detection is provided by ML Kit on Android and by Vision on iOS. On Android devices without Google Play Services the plugin falls back to a built-in scanner where the crop area starts as a fixed rectangle and is positioned by the user.
+
 <img src="https://user-images.githubusercontent.com/1488063/167291601-c64db2d5-78ab-4781-bc7a-afe7eb93e083.png" height ="400"  alt=""/>
 <img src="https://user-images.githubusercontent.com/1488063/167291821-3b66d0bb-b636-4911-a572-d2368dc95012.jpeg" height ="400"  alt=""/>
 <img src="https://user-images.githubusercontent.com/1488063/167291827-fa0ae804-1b81-4ef4-8607-3b212c3ab1c0.jpeg" height ="400"  alt=""/>
@@ -94,7 +97,7 @@ Alternatively, you can add the supported languages to the **Localizations** list
 2. Select the `Runner` project in the left project navigator.
 3. In the **Info** tab, under the **Localizations** section, click the `+` button and add the languages your app supports.
 
-If one of these configurations is applied, iOS will automatically load the plugin's built-in translations (supporting 29 major languages) and translate the system document camera UI to the device's system language. Otherwise, iOS will default all system and plugin UI strings to English.
+If one of these configurations is applied, iOS will automatically load the plugin's built-in translations (supporting 31 languages, including Catalan, Basque and Galician) and translate the system document camera UI to the device's system language. Otherwise, iOS will default all system and plugin UI strings to English.
 
 ## How to use ?
 
@@ -169,6 +172,9 @@ There are some features in Android that allow you to adjust the scanner that wil
    );
 ```
 
+> [!NOTE]
+> `noOfPages` is enforced while scanning on Android and in the iOS photo picker, so the user cannot go over the limit. The iOS document camera exposes no page limit, so any extra pages are discarded after scanning without notifying the user.
+
 
 
 ### iOS Specific
@@ -201,6 +207,49 @@ Images imported from the gallery go through the plugin's own cropper, which offe
 
 > [!NOTE]
 > These options only affect the plugin's cropper. The system document camera (`VNDocumentCameraViewController`) applies its own processing and VisionKit exposes no scanner mode or filter toggle for it.
+
+## Customization
+
+The plugin's native UI reads its text and colors from named resources, and it looks in **your** application before its own. Redeclaring a name in your app therefore overrides it — no fork and no configuration.
+
+### Android: text, colors and dimensions
+
+Declare any of the plugin's resources in your own `android/app/src/main/res/`. Android merges a library's resources into the application's, and **the application wins**, so your value is the one that ships.
+
+```xml
+<!-- android/app/src/main/res/values/colors.xml -->
+<resources>
+    <color name="cunning_black">#101820</color>                          <!-- cropper background -->
+    <color name="cunning_done_button_inner_circle_color">#FFD166</color> <!-- confirm button -->
+    <color name="cunning_page_progress_label_text">#FFFFFF</color>
+    <color name="cunning_page_progress_label_background">#99000000</color>
+</resources>
+```
+
+```xml
+<!-- android/app/src/main/res/values-es/strings.xml -->
+<resources>
+    <string name="cunning_crop_page_progress">Ajusta el documento (%1$d/%2$d)</string>
+</resources>
+```
+
+The same works for every `cunning_`-prefixed dimension, so button sizes and paddings can be adjusted too. Keep the positional specifiers (`%1$d`, `%2$d`) in any string that has them.
+
+### iOS: text
+
+Declare the plugin's key in your app's `Localizable.strings`. The plugin resolves each key against the main bundle first and falls back to its own translations only when your app does not define it:
+
+```
+/* ios/Runner/es.lproj/Localizable.strings */
+"cunning_document_scanner_crop_title" = "Ajusta el documento (%1$d/%2$d)";
+"cunning_document_scanner_camera" = "Hacer foto";
+"cunning_document_scanner_gallery" = "Elegir de la galería";
+```
+
+The available keys are `camera`, `gallery`, `cancel`, `crop_title`, `discard_title`, `discard_message`, `discard`, `filter_original`, `filter_color`, `filter_grayscale` and `filter_bw`, each prefixed with `cunning_document_scanner_`. See [`en.lproj/Localizable.strings`](ios/cunning_document_scanner/Sources/cunning_document_scanner/Resources/en.lproj/Localizable.strings) for the full list.
+
+> [!NOTE]
+> Colors on iOS are currently hard-coded in Swift and cannot be overridden this way. Only text is customizable on that platform.
 
 ## Installation
 
@@ -246,6 +295,50 @@ If you want to contribute to this plugin or run the example app locally:
    ```bash
    flutter run
    ```
+
+## Naming Conventions
+
+These rules exist because a Flutter plugin's native resources do not live in a namespace of their own — they are merged into whatever application installs the plugin.
+
+### Android resources
+
+**Every resource must start with `cunning_`.** This covers strings, colors, dimens, integers, styles, view IDs, and the file names of layouts, drawables, animators and XML resources.
+
+```xml
+<!-- Correct -->
+<string name="cunning_crop_page_progress">Crop Page %1$d of %2$d</string>
+<color name="cunning_black">#000000</color>
+
+<!-- Wrong: collides with the host application -->
+<string name="crop_page_progress">Crop Page %1$d of %2$d</string>
+<color name="black">#000000</color>
+```
+
+The reason is that Android merges a library's resources into the application's resource table, and **on a name collision the application's value wins**. An app declaring something as ordinary as `<color name="black">` would silently restyle this plugin's scanner. The rule is enforced by `resourcePrefix = "cunning_"` in [`android/build.gradle.kts`](android/build.gradle.kts), so AGP flags any resource that forgets it.
+
+The prefix is what turns that hazard into the deliberate extension point described under [Customization](#customization): names are unlikely to be hit by accident, but an application that redeclares one on purpose gets exactly the override it asked for. Treat every `cunning_`-prefixed resource name as public API and rename it only in a major release.
+
+Framework attributes inside a style (`<item name="android:windowFullscreen">`) are attribute references, not resources, and are left alone.
+
+### iOS localization keys
+
+Keys in `Localizable.strings` are prefixed `cunning_document_scanner_`, for the same reason: the plugin looks the key up in the host application's main bundle first, so that an app can override any string it wants, and only falls back to its own bundle.
+
+```
+"cunning_document_scanner_crop_title" = "Crop Page %1$d of %2$d";
+```
+
+### Adding or changing a user-visible string
+
+Both platforms ship the same 31 languages and are expected to stay in step:
+
+1. Add the key to `ios/.../Resources/en.lproj/Localizable.strings` and to **all** the other `*.lproj` files.
+2. Add the matching `cunning_`-prefixed string to `android/src/main/res/values/strings.xml` and to **all** the `values-*/strings.xml` files.
+3. Use positional format specifiers (`%1$d`, `%2$d`) so both platforms can share the same wording, and so translators can reorder them.
+
+Android resolves the language from the device automatically. iOS requires the host application to opt in, as described in the [Localization Configuration](#localization-configuration) section above.
+
+Hebrew and Indonesian use the legacy Android qualifiers `values-iw` and `values-in`, and Chinese uses BCP47 script tags (`values-b+zh+Hans`, `values-b+zh+Hant`) so the variant is chosen by script rather than by country.
 
 ## Contributions
 

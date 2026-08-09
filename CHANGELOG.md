@@ -17,6 +17,8 @@
 * **`IosScannerOptions` is no longer a `const` constructor.** It now validates `jpgCompressionQuality` and throws an `ArgumentError` for values outside 0.0 - 1.0.
 
 ### Fixed
+* **Importing images from the gallery could fail on Android.** Providers that keep images in the cloud, such as Google Photos, return a URI before the bytes are available locally. The cropper opened that stream on the main thread as soon as it started, freezing the UI for the length of the download and aborting with a decode error when the image was not ready yet. Image reading, decoding and cropping now run on a background thread with a progress indicator, and an image that genuinely cannot be read reports that it may still be downloading.
+* **Large images could exhaust memory in the Android fallback scanner.** Photos were decoded at full resolution, and rotating one by its EXIF orientation allocated a second copy without releasing the first, so a 12 MP capture peaked at roughly 96 MB. Images are now downsampled to a longest edge of 2048 px and the intermediate bitmap is recycled. This path runs on devices without Google Play Services, which are the least able to absorb that. The gallery import was routed through the same decoder so crop coordinates stay in one coordinate space.
 * **The scanner could be locked out for the rest of the process on iPad.** The `cameraAndGallery` action sheet is a popover there, and dismissing it by tapping outside could leave the pending result callback stranded, after which every later call failed with `ALREADY_ACTIVE`. The same happened when no view controller was available to present from. Dismissal by gesture is now treated as a cancellation, and a missing presenter fails immediately with `NO_VIEW_CONTROLLER` rather than consuming the call.
 * **`cleanCache()` no longer requires an attached `Activity` on Android.** It only ever needed a `Context`, so cleaning at startup — before any `Activity` is attached — used to fail with `NO_ACTIVITY` for no technical reason.
 * **A `restricted` camera authorization was ignored on iOS.** Devices under parental controls or an MDM policy report `restricted`, which the Dart-side check did not treat as a refusal, so the scanner opened a camera the user could never grant access to. The native check covers it.
@@ -33,12 +35,19 @@
 * `IosScannerOptions.defaultFilter` and `IosScannerOptions.showFilterBar` expose the iOS cropper filters (`IosDocumentFilter.original`, `.color`, `.grayscale`, `.blackAndWhite`) to Dart.
 * Kotlin unit tests for the method channel argument helpers, run in CI.
 * `tool/check_versions.sh`, run in CI, fails the build when `pubspec.yaml`, the podspec, `android/build.gradle.kts` and the changelog disagree on the version.
+* **Documented how to customize the native UI.** An application can override any of the plugin's text, and on Android also its colors and dimensions, by redeclaring the matching resource name — `cunning_*` on Android, `cunning_document_scanner_*` in `Localizable.strings` on iOS. This already worked, since the plugin resolves each name against the host application first, but was never written down. iOS colors remain hard-coded and are not overridable.
 
 ### Changed
 * Removed the unconditional debug logging from the Android plugin and the debug `print` from the Dart layer; both leaked file paths and URIs into release logs.
 * `plugin_platform_interface` moved to `dev_dependencies`; it was only ever used by tests.
 * Added `topics` and `issue_tracker` to `pubspec.yaml`.
 * Stricter analysis (`strict-casts`, `strict-raw-types`, `public_member_api_docs`) and raised, rather than disabled, the SwiftLint size and complexity rules.
+* The Android fallback cropper shows a page counter while working through a batch of imported images, matching what iOS already displayed.
+* **Android is localized.** Its strings shipped in English only while iOS carried 29 languages; both platforms now cover the same set. The shared wording is taken from the existing iOS translations so the two say the same thing.
+* **Added Basque (`eu`) and Galician (`gl`)** on both platforms, bringing the total to 31. Catalan was already supported. Valencian is served by the Catalan localization, and Asturian, Aragonese and Aranese are left out because iOS does not offer them as system languages.
+* **Every Android resource is now prefixed `cunning_`.** A library's resources are merged into the host application's resource table and the application wins any name collision, so the plugin previously exposed 45 unprefixed names — including `black`, `image_view` and `activity_image_crop` — that an application could silently override, restyling or breaking the scanner. `resourcePrefix = "cunning_"` makes AGP flag any future lapse, and the convention is documented in the README. These are internal resources, so applications need no changes.
+* Removed the unused `EdgeDetector` interface, and corrected documentation that claimed the fallback scanner detects corners automatically. It does not, and never did: the crop quad starts as a fixed inset that the user positions. Automatic detection comes from ML Kit on Android and Vision on iOS.
+* Documented that `noOfPages` is applied after the fact by the iOS document camera, which exposes no page limit of its own.
 
 ## 2.8.0
 ### iOS

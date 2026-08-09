@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/cunning_black"
+    android:paddingVertical="@dimen/cunning_image_crop_view_vertical_padding"
+    tools:context=".fallback.DocumentScannerActivity">
+
+    <biz.cunning.cunning_document_scanner.fallback.ui.ImageCropView
+        android:id="@+id/cunning_image_view"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/cunning_image_crop_view_initial_height"
+        android:contentDescription="@string/cunning_image_with_cropper" />
+
+    <ProgressBar
+        android:id="@+id/cunning_loading_indicator"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/cunning_page_progress_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="@dimen/cunning_page_progress_label_margin_top"
+        android:paddingHorizontal="@dimen/cunning_page_progress_label_horizontal_padding"
+        android:paddingVertical="@dimen/cunning_page_progress_label_vertical_padding"
+        android:background="@color/cunning_page_progress_label_background"
+        android:textColor="@color/cunning_page_progress_label_text"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:text="Crop Page 1 of 3" />
+
+    <LinearLayout
+        android:paddingHorizontal="@dimen/cunning_buttons_container_horizontal_padding"
+        android:paddingBottom="@dimen/cunning_buttons_container_bottom_padding"
+        android:baselineAligned="false"
+        android:layout_below="@+id/cunning_image_view"
+        android:layout_alignParentBottom="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+
+            <biz.cunning.cunning_document_scanner.fallback.ui.CircleButton
+                android:id="@+id/cunning_retake_photo_button"
+                android:src="@drawable/cunning_ic_baseline_arrow_back_24"
+                android:layout_gravity="center"
+                android:layout_width="@dimen/cunning_small_button_diameter"
+                android:layout_height="@dimen/cunning_small_button_diameter"
+                android:stateListAnimator="@animator/cunning_button_grow_animation"
+                android:background="@android:color/transparent" />
+
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+
+            <biz.cunning.cunning_document_scanner.fallback.ui.DoneButton
+                android:id="@+id/cunning_complete_document_scan_button"
+                android:layout_gravity="center"
+                android:layout_width="@dimen/cunning_large_button_diameter"
+                android:layout_height="@dimen/cunning_large_button_diameter"
+                android:background="@android:color/transparent"
+                android:stateListAnimator="@animator/cunning_button_grow_animation"
+                android:src="@drawable/cunning_ic_baseline_check_24" />
+
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+
+            <biz.cunning.cunning_document_scanner.fallback.ui.CircleButton
+                android:id="@+id/cunning_new_photo_button"
+                android:src="@drawable/cunning_ic_baseline_add_24"
+                android:layout_gravity="center"
+                android:layout_width="@dimen/cunning_small_button_diameter"
+                android:layout_height="@dimen/cunning_small_button_diameter"
+                android:stateListAnimator="@animator/cunning_button_grow_animation"
+                android:background="@android:color/transparent" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>

@@ -75,7 +75,7 @@ class ImageCropView(
         val buttonsViewMinHeight =
             context.resources
                 .getDimension(
-                    R.dimen.buttons_container_min_height,
+                    R.dimen.cunning_buttons_container_min_height,
                 ).toInt()
 
         imagePreviewHeight =
@@ -169,14 +169,14 @@ class ImageCropView(
         if (quad !== null) {
             canvas.drawQuad(
                 quad!!,
-                resources.getDimension(R.dimen.cropper_corner_radius),
+                resources.getDimension(R.dimen.cunning_cropper_corner_radius),
                 cropperLinesAndCornersStyles,
                 cropperSelectedCornerFillStyles,
                 closestCornerToTouch,
                 imagePreviewBounds,
                 ratio,
-                resources.getDimension(R.dimen.cropper_selected_corner_radius_magnification),
-                resources.getDimension(R.dimen.cropper_selected_corner_background_magnification),
+                resources.getDimension(R.dimen.cunning_cropper_selected_corner_radius_magnification),
+                resources.getDimension(R.dimen.cunning_cropper_selected_corner_background_magnification),
             )
         }
     }

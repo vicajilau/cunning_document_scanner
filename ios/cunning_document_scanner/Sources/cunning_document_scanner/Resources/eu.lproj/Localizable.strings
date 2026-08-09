@@ -1,0 +1,12 @@
+"cunning_document_scanner_camera" = "Kamera";
+"cunning_document_scanner_gallery" = "Argazki-liburutegia";
+"cunning_document_scanner_cancel" = "Utzi";
+"cunning_document_scanner_crop_title" = "Moztu %1$d. orria %2$d(e)tik";
+"cunning_document_scanner_discard_title" = "Aldaketak baztertu?";
+"cunning_document_scanner_discard_message" = "Ziur zaude zure aurrerapena baztertu nahi duzula?";
+"cunning_document_scanner_discard" = "Baztertu";
+
+"cunning_document_scanner_filter_original" = "Jatorrizkoa";
+"cunning_document_scanner_filter_color" = "Kolorea";
+"cunning_document_scanner_filter_grayscale" = "Gris-eskala";
+"cunning_document_scanner_filter_bw" = "Z/B";

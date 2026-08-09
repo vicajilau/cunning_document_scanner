@@ -12,18 +12,62 @@ import kotlin.math.sqrt
 
 // / Helper utility class to decode, rotate, perspective-correct, and crop document images.
 class ImageUtil {
+    companion object {
+        // / Longest edge, in pixels, a decoded document bitmap is allowed to have.
+        // /
+        // / A full resolution phone camera photo decodes to tens of megabytes as ARGB_8888,
+        // / and rotating or perspective correcting it allocates a second copy of the same
+        // / size. This path is the fallback scanner, reached on devices without Play
+        // / Services, which tend to be the ones least able to absorb that.
+        const val MAX_IMAGE_DIMENSION = 2048
+    }
+
     // / Loads and returns a bitmap from the specified file path, correcting rotation orientation metadata.
+    // / The image is downsampled so its longest edge does not exceed [MAX_IMAGE_DIMENSION].
     // / - filePath: The absolute file path to the source image.
     fun getImageFromFilePath(filePath: String): Bitmap? {
         val rotation = getRotationDegrees(filePath)
-        val bitmap = BitmapFactory.decodeFile(filePath) ?: return null
 
-        return if (rotation != 0) {
-            val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        } else {
-            bitmap
+        val bounds =
+            BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+        BitmapFactory.decodeFile(filePath, bounds)
+
+        val options =
+            BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight)
+            }
+        val bitmap = BitmapFactory.decodeFile(filePath, options) ?: return null
+
+        if (rotation == 0) {
+            return bitmap
         }
+
+        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        // createBitmap can hand back the very same instance when there is nothing to do.
+        if (rotated != bitmap) {
+            bitmap.recycle()
+        }
+        return rotated
+    }
+
+    // / Smallest power of two keeping both edges within [MAX_IMAGE_DIMENSION].
+    // / Returns 1 when the bounds could not be read, leaving the image untouched.
+    private fun calculateInSampleSize(
+        width: Int,
+        height: Int,
+    ): Int {
+        if (width <= 0 || height <= 0) return 1
+
+        var sampleSize = 1
+        while (width / (sampleSize * 2) >= MAX_IMAGE_DIMENSION ||
+            height / (sampleSize * 2) >= MAX_IMAGE_DIMENSION
+        ) {
+            sampleSize *= 2
+        }
+        return sampleSize
     }
 
     // / Resolves rotation degree properties by parsing ExifInterface headers.
