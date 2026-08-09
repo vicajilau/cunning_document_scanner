@@ -17,6 +17,8 @@
 * **`IosScannerOptions` is no longer a `const` constructor.** It now validates `jpgCompressionQuality` and throws an `ArgumentError` for values outside 0.0 - 1.0.
 
 ### Fixed
+* **The scanner could be locked out for the rest of the process on iPad.** The `cameraAndGallery` action sheet is a popover there, and dismissing it by tapping outside could leave the pending result callback stranded, after which every later call failed with `ALREADY_ACTIVE`. The same happened when no view controller was available to present from. Dismissal by gesture is now treated as a cancellation, and a missing presenter fails immediately with `NO_VIEW_CONTROLLER` rather than consuming the call.
+* **`cleanCache()` no longer requires an attached `Activity` on Android.** It only ever needed a `Context`, so cleaning at startup — before any `Activity` is attached — used to fail with `NO_ACTIVITY` for no technical reason.
 * **A `restricted` camera authorization was ignored on iOS.** Devices under parental controls or an MDM policy report `restricted`, which the Dart-side check did not treat as a refusal, so the scanner opened a camera the user could never grant access to. The native check covers it.
 * **The camera permission was requested even for gallery-only flows.** `ScannerSource.gallery` uses the out-of-process system photo picker, which needs no permission; it no longer prompts for anything.
 * **`cleanCache()` could delete host application data.** On iOS it removed every `.pdf`, `.jpg` and `.png` in the app's `Documents` directory; on Android it matched by file extension in `cacheDir` and the pictures directory. Both now delete only files the plugin itself wrote, identified by the `DOCUMENT_SCAN_` prefix and the private storage directory.

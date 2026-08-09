@@ -73,8 +73,18 @@ public class CunningDocumentScannerPlugin: NSObject,
             return
         }
 
+        // Without a presenter nothing can be shown, and the result callback would be
+        // stored with no flow left to release it, locking out every later call.
+        guard let presentedVC = rootViewController else {
+            result(FlutterError(
+                code: "NO_VIEW_CONTROLLER",
+                message: "No view controller available to present the scanner",
+                details: nil
+            ))
+            return
+        }
+
         scannerOptions = CunningScannerOptions.fromArguments(args: call.arguments)
-        let presentedVC = rootViewController
         resultChannel = result
 
         switch scannerOptions.scannerSource {
@@ -110,14 +120,21 @@ public class CunningDocumentScannerPlugin: NSObject,
             
             if UIDevice.current.userInterfaceIdiom == .pad,
                let popoverController = alertController.popoverPresentationController {
-                popoverController.sourceView = presentedVC?.view
-                let midX = presentedVC?.view.bounds.midX ?? 0
-                let midY = presentedVC?.view.bounds.midY ?? 0
+                popoverController.sourceView = presentedVC.view
+                let midX = presentedVC.view.bounds.midX
+                let midY = presentedVC.view.bounds.midY
                 popoverController.sourceRect = CGRect(x: midX, y: midY, width: 0, height: 0)
                 popoverController.permittedArrowDirections = []
             }
-            
-            presentedVC?.present(alertController, animated: true)
+
+            // On iPad the sheet is a popover, which the user can dismiss by tapping outside
+            // without the cancel action ever running. That would strand the result callback
+            // and, because a second call is rejected as ALREADY_ACTIVE, lock the plugin for
+            // the rest of the process. The delegate only fires for user-driven dismissals,
+            // so choosing Camera or Gallery does not trigger it.
+            alertController.presentationController?.delegate = self
+
+            presentedVC.present(alertController, animated: true)
         }
     }
 
@@ -162,7 +179,7 @@ public class CunningDocumentScannerPlugin: NSObject,
     }
 
     /// Launches the native system document camera (VNDocumentCameraViewController).
-    func openCamera(from presentedVC: UIViewController?) {
+    func openCamera(from presentedVC: UIViewController) {
         withCameraAccess { [weak self] in
             guard let self = self else { return }
 
@@ -175,25 +192,28 @@ public class CunningDocumentScannerPlugin: NSObject,
             let controller = VNDocumentCameraViewController()
             controller.delegate = self
             self.presentingController = controller
-            presentedVC?.present(controller, animated: true)
+            presentedVC.present(controller, animated: true)
         }
     }
 
     /// Launches the photo picker (PHPickerViewController on iOS 14+, fallback to UIImagePickerController).
-    func openGallery(from presentedVC: UIViewController?) {
+    func openGallery(from presentedVC: UIViewController) {
         if #available(iOS 14.0, *) {
             var configuration = PHPickerConfiguration()
             configuration.filter = .images
             configuration.selectionLimit = scannerOptions.noOfPages
-            
+
             let picker = PHPickerViewController(configuration: configuration)
             picker.delegate = self
-            presentedVC?.present(picker, animated: true)
+            presentedVC.present(picker, animated: true)
         } else {
             let picker = UIImagePickerController()
             picker.sourceType = .photoLibrary
             picker.delegate = self
-            presentedVC?.present(picker, animated: true)
+            // Sheet-style presentation lets the user swipe this picker away without
+            // `imagePickerControllerDidCancel` running, which would strand the result.
+            picker.modalPresentationStyle = .fullScreen
+            presentedVC.present(picker, animated: true)
         }
     }
 
@@ -443,6 +463,20 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
                 }
             }
         }
+    }
+}
+
+// MARK: - UIAdaptivePresentationControllerDelegate
+
+extension CunningDocumentScannerPlugin: UIAdaptivePresentationControllerDelegate {
+
+    /// Treats a swipe-away or tap-outside dismissal as a cancellation.
+    ///
+    /// UIKit only calls this for user-driven dismissals, never for the programmatic
+    /// dismissal that follows tapping an action, so the camera and gallery choices are
+    /// unaffected. `finish` is a no-op once the result has already been delivered.
+    public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        finish(nil)
     }
 }
 

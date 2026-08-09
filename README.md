@@ -16,11 +16,12 @@ Cunning Document Scanner is a Flutter-based document scanner application that en
 ## Key Features
 
 - Fast and easy document scanning.
-- Conversion of document images into digital files.
+- Conversion of document images into digital files, including direct PDF export.
 - Support for both Android and iOS platforms.
 - Minimum requirements: API 21 on Android, iOS 13 on iOS.
-- Limit the number of scannable files on Android.
-- Allows selection of images from the gallery on Android.
+- Limit the number of scanned pages on both platforms.
+- Import images from the gallery on both platforms, with manual cropping.
+- No third-party runtime dependencies.
 
 A state of the art document scanner with automatic cropping function.
 
