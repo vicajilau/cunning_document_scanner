@@ -208,6 +208,49 @@ Images imported from the gallery go through the plugin's own cropper, which offe
 > [!NOTE]
 > These options only affect the plugin's cropper. The system document camera (`VNDocumentCameraViewController`) applies its own processing and VisionKit exposes no scanner mode or filter toggle for it.
 
+## Customization
+
+The plugin's native UI reads its text and colors from named resources, and it looks in **your** application before its own. Redeclaring a name in your app therefore overrides it — no fork and no configuration.
+
+### Android: text, colors and dimensions
+
+Declare any of the plugin's resources in your own `android/app/src/main/res/`. Android merges a library's resources into the application's, and **the application wins**, so your value is the one that ships.
+
+```xml
+<!-- android/app/src/main/res/values/colors.xml -->
+<resources>
+    <color name="cunning_black">#101820</color>                          <!-- cropper background -->
+    <color name="cunning_done_button_inner_circle_color">#FFD166</color> <!-- confirm button -->
+    <color name="cunning_page_progress_label_text">#FFFFFF</color>
+    <color name="cunning_page_progress_label_background">#99000000</color>
+</resources>
+```
+
+```xml
+<!-- android/app/src/main/res/values-es/strings.xml -->
+<resources>
+    <string name="cunning_crop_page_progress">Ajusta el documento (%1$d/%2$d)</string>
+</resources>
+```
+
+The same works for every `cunning_`-prefixed dimension, so button sizes and paddings can be adjusted too. Keep the positional specifiers (`%1$d`, `%2$d`) in any string that has them.
+
+### iOS: text
+
+Declare the plugin's key in your app's `Localizable.strings`. The plugin resolves each key against the main bundle first and falls back to its own translations only when your app does not define it:
+
+```
+/* ios/Runner/es.lproj/Localizable.strings */
+"cunning_document_scanner_crop_title" = "Ajusta el documento (%1$d/%2$d)";
+"cunning_document_scanner_camera" = "Hacer foto";
+"cunning_document_scanner_gallery" = "Elegir de la galería";
+```
+
+The available keys are `camera`, `gallery`, `cancel`, `crop_title`, `discard_title`, `discard_message`, `discard`, `filter_original`, `filter_color`, `filter_grayscale` and `filter_bw`, each prefixed with `cunning_document_scanner_`. See [`en.lproj/Localizable.strings`](ios/cunning_document_scanner/Sources/cunning_document_scanner/Resources/en.lproj/Localizable.strings) for the full list.
+
+> [!NOTE]
+> Colors on iOS are currently hard-coded in Swift and cannot be overridden this way. Only text is customizable on that platform.
+
 ## Installation
 
 Add `cunning_document_scanner` as a dependency in your `pubspec.yaml` file:
@@ -272,6 +315,8 @@ These rules exist because a Flutter plugin's native resources do not live in a n
 ```
 
 The reason is that Android merges a library's resources into the application's resource table, and **on a name collision the application's value wins**. An app declaring something as ordinary as `<color name="black">` would silently restyle this plugin's scanner. The rule is enforced by `resourcePrefix = "cunning_"` in [`android/build.gradle.kts`](android/build.gradle.kts), so AGP flags any resource that forgets it.
+
+The prefix is what turns that hazard into the deliberate extension point described under [Customization](#customization): names are unlikely to be hit by accident, but an application that redeclares one on purpose gets exactly the override it asked for. Treat every `cunning_`-prefixed resource name as public API and rename it only in a major release.
 
 Framework attributes inside a style (`<item name="android:windowFullscreen">`) are attribute references, not resources, and are left alone.
 

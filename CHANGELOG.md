@@ -35,6 +35,7 @@
 * `IosScannerOptions.defaultFilter` and `IosScannerOptions.showFilterBar` expose the iOS cropper filters (`IosDocumentFilter.original`, `.color`, `.grayscale`, `.blackAndWhite`) to Dart.
 * Kotlin unit tests for the method channel argument helpers, run in CI.
 * `tool/check_versions.sh`, run in CI, fails the build when `pubspec.yaml`, the podspec, `android/build.gradle.kts` and the changelog disagree on the version.
+* **Documented how to customize the native UI.** An application can override any of the plugin's text, and on Android also its colors and dimensions, by redeclaring the matching resource name — `cunning_*` on Android, `cunning_document_scanner_*` in `Localizable.strings` on iOS. This already worked, since the plugin resolves each name against the host application first, but was never written down. iOS colors remain hard-coded and are not overridable.
 
 ### Changed
 * Removed the unconditional debug logging from the Android plugin and the debug `print` from the Dart layer; both leaked file paths and URIs into release logs.
