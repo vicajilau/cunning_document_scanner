@@ -41,6 +41,8 @@
 * Added `topics` and `issue_tracker` to `pubspec.yaml`.
 * Stricter analysis (`strict-casts`, `strict-raw-types`, `public_member_api_docs`) and raised, rather than disabled, the SwiftLint size and complexity rules.
 * The Android fallback cropper shows a page counter while working through a batch of imported images, matching what iOS already displayed.
+* **Android is localized.** Its strings shipped in English only while iOS carried 29 languages; both platforms now cover the same set. The shared wording is taken from the existing iOS translations so the two say the same thing.
+* **Added Basque (`eu`) and Galician (`gl`)** on both platforms, bringing the total to 31. Catalan was already supported. Valencian is served by the Catalan localization, and Asturian, Aragonese and Aranese are left out because iOS does not offer them as system languages.
 * Removed the unused `EdgeDetector` interface, and corrected documentation that claimed the fallback scanner detects corners automatically. It does not, and never did: the crop quad starts as a fixed inset that the user positions. Automatic detection comes from ML Kit on Android and Vision on iOS.
 * Documented that `noOfPages` is applied after the fact by the iOS document camera, which exposes no page limit of its own.
 

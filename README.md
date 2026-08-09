@@ -97,7 +97,7 @@ Alternatively, you can add the supported languages to the **Localizations** list
 2. Select the `Runner` project in the left project navigator.
 3. In the **Info** tab, under the **Localizations** section, click the `+` button and add the languages your app supports.
 
-If one of these configurations is applied, iOS will automatically load the plugin's built-in translations (supporting 29 major languages) and translate the system document camera UI to the device's system language. Otherwise, iOS will default all system and plugin UI strings to English.
+If one of these configurations is applied, iOS will automatically load the plugin's built-in translations (supporting 31 languages, including Catalan, Basque and Galician) and translate the system document camera UI to the device's system language. Otherwise, iOS will default all system and plugin UI strings to English.
 
 ## How to use ?
 
