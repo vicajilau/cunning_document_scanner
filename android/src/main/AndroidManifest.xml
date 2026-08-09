@@ -1,10 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="biz.cunning.cunning_document_scanner">
     <application android:theme="@style/Theme.AppCompat.NoActionBar">
-        <meta-data
-            android:name="com.huawei.hms.ml.DEPENDENCY"
-            android:value="dsc" />
-
         <activity
             android:name=".fallback.DocumentScannerActivity"
             android:configChanges="orientation|screenSize"

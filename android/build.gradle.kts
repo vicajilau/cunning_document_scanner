@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import com.android.build.api.dsl.LibraryExtension
 
 group = "biz.cunning.cunning_document_scanner"
-version = "2.7.0"
+version = "3.0.0"
 
 plugins {
     id("com.android.library")
@@ -25,6 +25,16 @@ configure<LibraryExtension> {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    sourceSets {
+        getByName("test") {
+            java.srcDir("src/test/kotlin")
+        }
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 plugins.withId("org.jetbrains.kotlin.android") {
     extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
@@ -36,4 +46,5 @@ plugins.withId("org.jetbrains.kotlin.android") {
 
 dependencies {
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
+    testImplementation("junit:junit:4.13.2")
 }

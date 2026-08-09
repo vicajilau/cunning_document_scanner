@@ -45,6 +45,13 @@ class DocumentScannerActivity : AppCompatActivity() {
     // / List of scanned/cropped documents containing original paths, dimensions, and corners.
     private val documents = mutableListOf<Document>()
 
+    // / Gallery images still waiting to be cropped, in selection order.
+    // / Empty when the activity is driven by the camera instead of by an import.
+    private val pendingImageUris = mutableListOf<Uri>()
+
+    // / True when the activity was started to crop images imported from the gallery.
+    private var isGalleryImportMode = false
+
     // / Camera utilities callback delegate to handle camera capture success or cancel events.
     private val cameraUtil =
         CameraUtil(
@@ -151,48 +158,15 @@ class DocumentScannerActivity : AppCompatActivity() {
         completeDocumentScanButton.onClick { onClickDone() }
         retakePhotoButton.onClick { onClickRetake() }
 
-        val initialImageUriStr = intent.getStringExtra("EXTRA_IMAGE_URI_TO_CROP")
-        android.util.Log.d("DocumentScannerActivity", "onCreate initialImageUriStr: $initialImageUriStr")
-        if (initialImageUriStr != null) {
+        pendingImageUris.addAll(readImageUrisToCrop().take(maxNumDocuments))
+
+        if (pendingImageUris.isNotEmpty()) {
+            isGalleryImportMode = true
+            // Imported images are cropped one after another; taking or retaking photos
+            // makes no sense in this mode.
             newPhotoButton.visibility = View.GONE
             retakePhotoButton.visibility = View.GONE
-            try {
-                val photoUri = Uri.parse(initialImageUriStr)
-                android.util.Log.d("DocumentScannerActivity", "Attempting to open Uri stream: $photoUri")
-                val photo =
-                    contentResolver.openInputStream(photoUri)?.use { inputStream ->
-                        android.graphics.BitmapFactory.decodeStream(inputStream)
-                    } ?: throw Exception("Failed to decode image from Uri")
-                android.util.Log.d("DocumentScannerActivity", "Decoded bitmap dimensions: ${photo.width} x ${photo.height}")
-
-                val photoFile = FileUtil().createImageFile(this, 0)
-                val originalPhotoPath = photoFile.absolutePath
-                photo.saveToFile(photoFile, croppedImageQuality)
-                android.util.Log.d("DocumentScannerActivity", "Saved photo to temp file: $originalPhotoPath")
-
-                detectCorners(photo) { corners ->
-                    android.util.Log.d("DocumentScannerActivity", "Corners detected: $corners")
-                    document = Document(originalPhotoPath, photo.width, photo.height, corners)
-                    try {
-                        imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
-                        imageView.setImage(photo)
-                        val cornersInImagePreviewCoordinates =
-                            corners
-                                .mapOriginalToPreviewImageCoordinates(
-                                    imageView.imagePreviewBounds,
-                                    imageView.imagePreviewBounds.height() / photo.height,
-                                )
-                        imageView.setCropper(cornersInImagePreviewCoordinates)
-                        android.util.Log.d("DocumentScannerActivity", "Crop view and cropper initialized")
-                    } catch (exception: Exception) {
-                        android.util.Log.e("DocumentScannerActivity", "Error setting preview: ${exception.message}")
-                        finishIntentWithError("unable to get image preview ready: ${exception.message}")
-                    }
-                }
-            } catch (exception: Exception) {
-                android.util.Log.e("DocumentScannerActivity", "Error loading Uri image: ${exception.message}")
-                finishIntentWithError("error loading image to crop: ${exception.message}")
-            }
+            loadNextPendingImage()
         } else {
             try {
                 openCamera()
@@ -201,6 +175,53 @@ class DocumentScannerActivity : AppCompatActivity() {
                     "error opening camera: ${exception.message}",
                 )
             }
+        }
+    }
+
+    // / Reads the gallery image URIs to crop from the intent.
+    // / Accepts both the multi-image extra and the legacy single-image one.
+    private fun readImageUrisToCrop(): List<Uri> {
+        val uris = intent.getStringArrayListExtra(DocumentScannerExtra.EXTRA_IMAGE_URIS_TO_CROP)
+        if (uris != null && uris.isNotEmpty()) {
+            return uris.map { Uri.parse(it) }
+        }
+        val legacyUri = intent.getStringExtra(DocumentScannerExtra.EXTRA_IMAGE_URI_TO_CROP)
+        return legacyUri?.let { listOf(Uri.parse(it)) } ?: emptyList()
+    }
+
+    // / Loads the next queued gallery image into the crop view, removing it from the queue.
+    private fun loadNextPendingImage() {
+        val photoUri = pendingImageUris.removeFirstOrNull() ?: return
+        document = null
+
+        try {
+            val photo =
+                contentResolver.openInputStream(photoUri)?.use { inputStream ->
+                    android.graphics.BitmapFactory.decodeStream(inputStream)
+                } ?: throw Exception("Failed to decode image from Uri")
+
+            val photoFile = FileUtil().createImageFile(this, documents.size)
+            val originalPhotoPath = photoFile.absolutePath
+            photo.saveToFile(photoFile, croppedImageQuality)
+
+            detectCorners(photo) { corners ->
+                document = Document(originalPhotoPath, photo.width, photo.height, corners)
+                try {
+                    imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
+                    imageView.setImage(photo)
+                    val cornersInImagePreviewCoordinates =
+                        corners
+                            .mapOriginalToPreviewImageCoordinates(
+                                imageView.imagePreviewBounds,
+                                imageView.imagePreviewBounds.height() / photo.height,
+                            )
+                    imageView.setCropper(cornersInImagePreviewCoordinates)
+                } catch (exception: Exception) {
+                    finishIntentWithError("unable to get image preview ready: ${exception.message}")
+                }
+            }
+        } catch (exception: Exception) {
+            finishIntentWithError("error loading image to crop: ${exception.message}")
         }
     }
 
@@ -260,8 +281,13 @@ class DocumentScannerActivity : AppCompatActivity() {
     }
 
     // / Callback triggered by complete done button click.
+    // / While gallery images remain queued, this advances to the next one instead of finishing.
     private fun onClickDone() {
         addSelectedCornersAndOriginalPhotoPathToDocuments()
+        if (isGalleryImportMode && pendingImageUris.isNotEmpty()) {
+            loadNextPendingImage()
+            return
+        }
         cropDocumentAndFinishIntent()
     }
 
@@ -280,7 +306,6 @@ class DocumentScannerActivity : AppCompatActivity() {
     // / Crops the documented pages, deletes temporary files, and returns file paths to parent activity.
     private fun cropDocumentAndFinishIntent() {
         val croppedImageResults = arrayListOf<String>()
-        android.util.Log.d("DocumentScannerActivity", "cropDocumentAndFinishIntent starting for ${documents.size} documents")
         for ((pageNumber, document) in documents.withIndex()) {
             val croppedImage: Bitmap? =
                 try {
@@ -289,13 +314,11 @@ class DocumentScannerActivity : AppCompatActivity() {
                         document.corners,
                     )
                 } catch (exception: Exception) {
-                    android.util.Log.e("DocumentScannerActivity", "Error cropping page $pageNumber: ${exception.message}")
                     finishIntentWithError("unable to crop image: ${exception.message}")
                     return
                 }
 
             if (croppedImage == null) {
-                android.util.Log.e("DocumentScannerActivity", "Cropped image is null for page $pageNumber")
                 finishIntentWithError("Result of cropping is null")
                 return
             }
@@ -306,17 +329,14 @@ class DocumentScannerActivity : AppCompatActivity() {
                 val croppedImageFile = FileUtil().createImageFile(this, pageNumber)
                 croppedImage.saveToFile(croppedImageFile, croppedImageQuality)
                 val returnedUri = Uri.fromFile(croppedImageFile).toString()
-                android.util.Log.d("DocumentScannerActivity", "Saved cropped image page $pageNumber to: $returnedUri")
                 croppedImageResults.add(returnedUri)
             } catch (exception: Exception) {
-                android.util.Log.e("DocumentScannerActivity", "Error saving cropped image page $pageNumber: ${exception.message}")
                 finishIntentWithError(
                     "unable to save cropped image: ${exception.message}",
                 )
             }
         }
 
-        android.util.Log.d("DocumentScannerActivity", "Finishing success with cropped results: $croppedImageResults")
         setResult(
             Activity.RESULT_OK,
             Intent().putExtra("croppedImageResults", croppedImageResults),
