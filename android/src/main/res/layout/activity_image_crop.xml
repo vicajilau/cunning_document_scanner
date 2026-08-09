@@ -28,7 +28,7 @@
         android:textSize="16sp"
         android:textStyle="bold"
         android:visibility="gone"
-        tools:text="Page 1 of 3" />
+        tools:text="Crop Page 1 of 3" />
 
     <LinearLayout
         android:paddingHorizontal="@dimen/buttons_container_horizontal_padding"

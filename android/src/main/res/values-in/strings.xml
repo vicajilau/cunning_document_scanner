@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="image_with_cropper">Original Image With Cropper</string>
+    <string name="image_with_cropper">Gambar asli dengan alat pemotong</string>
     <!-- Shown while cropping a batch of imported images. %1$d is the current page, %2$d the total. -->
-    <string name="crop_page_progress">Crop Page %1$d of %2$d</string>
+    <string name="crop_page_progress">Pangkas Halaman %1$d dari %2$d</string>
 </resources>
