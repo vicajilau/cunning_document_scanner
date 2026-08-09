@@ -18,6 +18,12 @@ class CunningDocumentScanner {
   /// This method will open the camera and allow the user to scan documents.
   ///
   /// [noOfPages] is the maximum number of pages that can be scanned (must be > 0).
+  ///
+  /// How the limit is applied differs by platform. Android and the iOS photo
+  /// picker enforce it while scanning, so the user cannot exceed it. The iOS
+  /// document camera exposes no page limit, so extra pages are discarded after
+  /// the fact: a user who scans ten pages with `noOfPages: 5` keeps the first
+  /// five and is not told about the rest.
   /// [isGalleryImportAllowed] is deprecated, use [scannerSource] instead.
   /// [scannerSource] controls where images are sourced from (camera, gallery, or both).
   /// [androidScannerMode] controls the ML Kit scanner mode on Android only.

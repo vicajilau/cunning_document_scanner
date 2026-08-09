@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import biz.cunning.cunning_document_scanner.R
 import biz.cunning.cunning_document_scanner.fallback.constants.DefaultSetting
@@ -25,10 +26,15 @@ import biz.cunning.cunning_document_scanner.fallback.utils.FileUtil
 import biz.cunning.cunning_document_scanner.fallback.utils.ImageUtil
 import java.io.File
 
-// / This class contains the main document scanner code. It opens the camera, lets the user
-// / take a photo of a document (homework paper, business card, etc.), detects document corners,
-// / allows user to make adjustments to the detected corners, depending on options, and saves
-// / the cropped document. It allows the user to do this for 1 or more documents.
+// / Fallback document scanner, used when the ML Kit scanner is unavailable.
+// /
+// / It opens the camera or takes images imported from the gallery, shows each one with a
+// / draggable crop quad, and saves the perspective corrected result. One or more documents
+// / can be processed in a single run.
+// /
+// / Corners are not detected automatically here: the quad starts as a fixed inset and the
+// / user positions it. Automatic detection is provided by the ML Kit scanner on Android and
+// / by Vision on iOS.
 class DocumentScannerActivity : AppCompatActivity() {
     // / Maximum number of documents a user can scan at a time.
     private var maxNumDocuments = DefaultSetting.MAX_NUM_DOCUMENTS
@@ -111,6 +117,9 @@ class DocumentScannerActivity : AppCompatActivity() {
     // / Container view holding the preview image and draggable crop overlay.
     private lateinit var imageView: ImageCropView
 
+    // / Shows which page of an imported batch is being cropped. Hidden for single images.
+    private lateinit var pageProgressLabel: TextView
+
     // / Called when the activity is first created. Sets up UI buttons, handles intent extras,
     // / and resolves whether to load an initial image URI or launch the camera.
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,6 +127,7 @@ class DocumentScannerActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_image_crop)
         imageView = findViewById(R.id.image_view)
+        pageProgressLabel = findViewById(R.id.page_progress_label)
 
         try {
             var userSpecifiedMaxImages: Int? = null
@@ -178,6 +188,19 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
     }
 
+    // / Keeps the page counter in step with the import queue.
+    // / A single imported image needs no counter, so the label stays hidden.
+    private fun updatePageProgressLabel() {
+        val total = documents.size + pendingImageUris.size + 1
+        if (!isGalleryImportMode || total <= 1) {
+            pageProgressLabel.visibility = View.GONE
+            return
+        }
+
+        pageProgressLabel.visibility = View.VISIBLE
+        pageProgressLabel.text = getString(R.string.crop_page_progress, documents.size + 1, total)
+    }
+
     // / Reads the gallery image URIs to crop from the intent.
     // / Accepts both the multi-image extra and the legacy single-image one.
     private fun readImageUrisToCrop(): List<Uri> {
@@ -193,16 +216,26 @@ class DocumentScannerActivity : AppCompatActivity() {
     private fun loadNextPendingImage() {
         val photoUri = pendingImageUris.removeFirstOrNull() ?: return
         document = null
+        updatePageProgressLabel()
 
         try {
-            val photo =
+            val imported =
                 contentResolver.openInputStream(photoUri)?.use { inputStream ->
                     android.graphics.BitmapFactory.decodeStream(inputStream)
                 } ?: throw Exception("Failed to decode image from Uri")
 
             val photoFile = FileUtil().createImageFile(this, documents.size)
             val originalPhotoPath = photoFile.absolutePath
-            photo.saveToFile(photoFile, croppedImageQuality)
+            imported.saveToFile(photoFile, croppedImageQuality)
+            imported.recycle()
+
+            // The corners below are expressed in the coordinate space of this bitmap, and
+            // cropDocumentAndFinishIntent reloads the file through the same helper. Both
+            // must therefore go through ImageUtil, which downsamples large images: reusing
+            // the stream-decoded bitmap here would offset every crop by the sample factor.
+            val photo =
+                ImageUtil().getImageFromFilePath(originalPhotoPath)
+                    ?: throw Exception("Failed to decode the imported image")
 
             detectCorners(photo) { corners ->
                 document = Document(originalPhotoPath, photo.width, photo.height, corners)
@@ -225,7 +258,8 @@ class DocumentScannerActivity : AppCompatActivity() {
         }
     }
 
-    // / Resolves document corners asynchronously. Defaults to inset bounding box.
+    // / Supplies the initial crop quad. This fallback has no corner detection, so the quad
+    // / is a fixed inset the user adjusts by hand.
     private fun detectCorners(
         photo: Bitmap,
         onComplete: (Quad) -> Unit,

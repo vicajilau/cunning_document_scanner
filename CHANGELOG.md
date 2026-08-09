@@ -17,6 +17,7 @@
 * **`IosScannerOptions` is no longer a `const` constructor.** It now validates `jpgCompressionQuality` and throws an `ArgumentError` for values outside 0.0 - 1.0.
 
 ### Fixed
+* **Large images could exhaust memory in the Android fallback scanner.** Photos were decoded at full resolution, and rotating one by its EXIF orientation allocated a second copy without releasing the first, so a 12 MP capture peaked at roughly 96 MB. Images are now downsampled to a longest edge of 2048 px and the intermediate bitmap is recycled. This path runs on devices without Google Play Services, which are the least able to absorb that. The gallery import was routed through the same decoder so crop coordinates stay in one coordinate space.
 * **The scanner could be locked out for the rest of the process on iPad.** The `cameraAndGallery` action sheet is a popover there, and dismissing it by tapping outside could leave the pending result callback stranded, after which every later call failed with `ALREADY_ACTIVE`. The same happened when no view controller was available to present from. Dismissal by gesture is now treated as a cancellation, and a missing presenter fails immediately with `NO_VIEW_CONTROLLER` rather than consuming the call.
 * **`cleanCache()` no longer requires an attached `Activity` on Android.** It only ever needed a `Context`, so cleaning at startup — before any `Activity` is attached — used to fail with `NO_ACTIVITY` for no technical reason.
 * **A `restricted` camera authorization was ignored on iOS.** Devices under parental controls or an MDM policy report `restricted`, which the Dart-side check did not treat as a refusal, so the scanner opened a camera the user could never grant access to. The native check covers it.
@@ -39,6 +40,9 @@
 * `plugin_platform_interface` moved to `dev_dependencies`; it was only ever used by tests.
 * Added `topics` and `issue_tracker` to `pubspec.yaml`.
 * Stricter analysis (`strict-casts`, `strict-raw-types`, `public_member_api_docs`) and raised, rather than disabled, the SwiftLint size and complexity rules.
+* The Android fallback cropper shows a page counter while working through a batch of imported images, matching what iOS already displayed.
+* Removed the unused `EdgeDetector` interface, and corrected documentation that claimed the fallback scanner detects corners automatically. It does not, and never did: the crop quad starts as a fixed inset that the user positions. Automatic detection comes from ML Kit on Android and Vision on iOS.
+* Documented that `noOfPages` is applied after the fact by the iOS document camera, which exposes no page limit of its own.
 
 ## 2.8.0
 ### iOS

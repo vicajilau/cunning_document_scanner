@@ -25,6 +25,9 @@ Cunning Document Scanner is a Flutter-based document scanner application that en
 
 A state of the art document scanner with automatic cropping function.
 
+> [!NOTE]
+> Automatic edge detection is provided by ML Kit on Android and by Vision on iOS. On Android devices without Google Play Services the plugin falls back to a built-in scanner where the crop area starts as a fixed rectangle and is positioned by the user.
+
 <img src="https://user-images.githubusercontent.com/1488063/167291601-c64db2d5-78ab-4781-bc7a-afe7eb93e083.png" height ="400"  alt=""/>
 <img src="https://user-images.githubusercontent.com/1488063/167291821-3b66d0bb-b636-4911-a572-d2368dc95012.jpeg" height ="400"  alt=""/>
 <img src="https://user-images.githubusercontent.com/1488063/167291827-fa0ae804-1b81-4ef4-8607-3b212c3ab1c0.jpeg" height ="400"  alt=""/>
@@ -168,6 +171,9 @@ There are some features in Android that allow you to adjust the scanner that wil
       androidScannerMode: AndroidScannerMode.base, // Use ML Kit base mode on Android (Optional)
    );
 ```
+
+> [!NOTE]
+> `noOfPages` is enforced while scanning on Android and in the iOS photo picker, so the user cannot go over the limit. The iOS document camera exposes no page limit, so any extra pages are discarded after scanning without notifying the user.
 
 
 

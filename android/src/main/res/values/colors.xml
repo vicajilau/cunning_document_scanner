@@ -2,4 +2,6 @@
 <resources>
     <color name="black">#000000</color>
     <color name="done_button_inner_circle_color">#D0E4FF</color>
+    <color name="page_progress_label_text">#FFFFFF</color>
+    <color name="page_progress_label_background">#99000000</color>
 </resources>

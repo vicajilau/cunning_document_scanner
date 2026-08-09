@@ -14,6 +14,22 @@
         android:layout_height="@dimen/image_crop_view_initial_height"
         android:contentDescription="@string/image_with_cropper" />
 
+    <TextView
+        android:id="@+id/page_progress_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="@dimen/page_progress_label_margin_top"
+        android:paddingHorizontal="@dimen/page_progress_label_horizontal_padding"
+        android:paddingVertical="@dimen/page_progress_label_vertical_padding"
+        android:background="@color/page_progress_label_background"
+        android:textColor="@color/page_progress_label_text"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:text="Page 1 of 3" />
+
     <LinearLayout
         android:paddingHorizontal="@dimen/buttons_container_horizontal_padding"
         android:paddingBottom="@dimen/buttons_container_bottom_padding"
