@@ -246,7 +246,9 @@ class CunningDocumentScannerPlugin :
                 }
             }
 
-            else -> resolve(null)
+            else -> {
+                resolve(null)
+            }
         }
     }
 
