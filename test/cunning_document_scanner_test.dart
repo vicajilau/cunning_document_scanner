@@ -1,61 +1,42 @@
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
-
-import 'mocks/mock_permission_handler_platform.dart';
 
 void main() {
-  group('CunningDocumentScanner permission denied', () {
-    setUp(() {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      PermissionHandlerPlatform.instance = MockPermissionHandlerPlatform(
-          permissionStatus: PermissionStatus.denied);
-    });
+  group('CunningDocumentScanner camera permission', () {
+    setUp(TestWidgetsFlutterBinding.ensureInitialized);
 
-    tearDown(() {
-      debugDefaultTargetPlatformOverride = null;
-    });
+    // The permission is requested natively (AVCaptureDevice on iOS), so what Dart
+    // owns is translating the native refusal into the documented exception.
+    testWidgets('a denied permission surfaces as the documented exception',
+        (WidgetTester tester) async {
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
 
-    test('getPictures with denied permission', () async {
-      expect(
-        () async => await CunningDocumentScanner.getPictures(),
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) => throw PlatformException(
+          code: 'permission_denied',
+          message: 'Camera permission not granted',
+        ),
+      );
+
+      await expectLater(
+        CunningDocumentScanner.getPictures(),
         throwsA(isA<CunningDocumentScannerException>()
             .having((e) => e.code, 'code', 'permission_denied')
             .having(
                 (e) => e.message, 'message', 'Camera permission not granted')),
       );
-    });
-  });
 
-  group('CunningDocumentScanner permission permanently denied', () {
-    setUp(() {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      PermissionHandlerPlatform.instance = MockPermissionHandlerPlatform(
-          permissionStatus: PermissionStatus.permanentlyDenied);
-    });
-
-    tearDown(() {
-      debugDefaultTargetPlatformOverride = null;
-    });
-
-    test('getPictures with permanently denied permission', () async {
-      expect(
-        () async => await CunningDocumentScanner.getPictures(),
-        throwsA(isA<CunningDocumentScannerException>()
-            .having((e) => e.code, 'code', 'permission_denied')
-            .having(
-                (e) => e.message, 'message', 'Camera permission not granted')),
-      );
+      // Mock handlers outlive the test that installed them, and the next group
+      // relies on the channel having none.
+      tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
     });
   });
 
   group('CunningDocumentScanner Plugin exceptions', () {
-    setUp(() {
-      TestWidgetsFlutterBinding.ensureInitialized();
-      PermissionHandlerPlatform.instance = MockPermissionHandlerPlatform();
-    });
+    setUp(TestWidgetsFlutterBinding.ensureInitialized);
 
     test('getPictures with MissingPluginException', () async {
       expect(() async => await CunningDocumentScanner.getPictures(),
@@ -64,13 +45,10 @@ void main() {
   });
 
   group('CunningDocumentScanner granted permission', () {
-    setUp(() {
-      TestWidgetsFlutterBinding.ensureInitialized();
-      PermissionHandlerPlatform.instance = MockPermissionHandlerPlatform();
-    });
+    setUp(TestWidgetsFlutterBinding.ensureInitialized);
 
     void loadPlatformChannel(WidgetTester tester, List<String> result) {
-      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
 
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         channel,
@@ -78,11 +56,13 @@ void main() {
       );
     }
 
-    testWidgets('getPictures empty result', (WidgetTester tester) async {
-      final List<String> emptyResult = [];
-      loadPlatformChannel(tester, emptyResult);
+    testWidgets('getPictures normalizes an empty native result to null',
+        (WidgetTester tester) async {
+      // Android reports cancellation as an empty list, iOS as null. Callers see null
+      // on both platforms so a single null check is enough.
+      loadPlatformChannel(tester, <String>[]);
       final result = await CunningDocumentScanner.getPictures();
-      expect(result, emptyResult);
+      expect(result, isNull);
     });
 
     testWidgets('getPictures multiple result', (WidgetTester tester) async {
@@ -95,13 +75,14 @@ void main() {
     testWidgets('getPictures passes asPdf parameter',
         (WidgetTester tester) async {
       final List<String> fakeResult = ['fake_pdf_url'];
-      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
 
-      var passedAsPdf = false;
+      bool passedAsPdf = false;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         channel,
         (MethodCall methodCall) {
-          passedAsPdf = methodCall.arguments['asPdf'] ?? false;
+          passedAsPdf =
+              (methodCall.arguments as Map)['asPdf'] as bool? ?? false;
           return Future.value(fakeResult);
         },
       );
@@ -114,13 +95,14 @@ void main() {
     testWidgets('getPictures resolves scannerSource when explicitly provided',
         (WidgetTester tester) async {
       final List<String> fakeResult = ['fake_url'];
-      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
 
       String? passedSource;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         channel,
         (MethodCall methodCall) {
-          passedSource = methodCall.arguments['scannerSource'];
+          passedSource =
+              (methodCall.arguments as Map)['scannerSource'] as String?;
           return Future.value(fakeResult);
         },
       );
@@ -138,13 +120,14 @@ void main() {
         'getPictures fallback to isGalleryImportAllowed when scannerSource is null',
         (WidgetTester tester) async {
       final List<String> fakeResult = ['fake_url'];
-      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
 
       String? passedSource;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         channel,
         (MethodCall methodCall) {
-          passedSource = methodCall.arguments['scannerSource'];
+          passedSource =
+              (methodCall.arguments as Map)['scannerSource'] as String?;
           return Future.value(fakeResult);
         },
       );
@@ -158,7 +141,7 @@ void main() {
 
     testWidgets('cleanCache calls native methodChannel',
         (WidgetTester tester) async {
-      MethodChannel channel = const MethodChannel('cunning_document_scanner');
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
 
       bool cleanCacheCalled = false;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -184,6 +167,109 @@ void main() {
       );
       expect(
         () => CunningDocumentScanner.getPictures(noOfPages: -5),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    testWidgets('getPictures maps a PlatformException to the package exception',
+        (WidgetTester tester) async {
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) => throw PlatformException(
+          code: 'ALREADY_ACTIVE',
+          message: 'A document scan is already in progress',
+        ),
+      );
+
+      await expectLater(
+        CunningDocumentScanner.getPictures(),
+        throwsA(isA<CunningDocumentScannerException>()
+            .having((e) => e.code, 'code', 'ALREADY_ACTIVE')
+            .having((e) => e.message, 'message',
+                'A document scan is already in progress')),
+      );
+    });
+
+    testWidgets('cleanCache maps a PlatformException to the package exception',
+        (WidgetTester tester) async {
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) => throw PlatformException(
+          code: 'CLEAN_CACHE_ERROR',
+          message: 'Permission denied',
+        ),
+      );
+
+      await expectLater(
+        CunningDocumentScanner.cleanCache(),
+        throwsA(isA<CunningDocumentScannerException>()
+            .having((e) => e.code, 'code', 'CLEAN_CACHE_ERROR')),
+      );
+    });
+
+    testWidgets('getPictures forwards the default androidScannerMode',
+        (WidgetTester tester) async {
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
+
+      String? passedMode;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) {
+          passedMode =
+              (methodCall.arguments as Map)['androidScannerMode'] as String?;
+          return Future.value(<String>['fake_url']);
+        },
+      );
+
+      await CunningDocumentScanner.getPictures();
+      expect(passedMode, equals('full'));
+
+      await CunningDocumentScanner.getPictures(
+          androidScannerMode: AndroidScannerMode.baseWithFilter);
+      expect(passedMode, equals('base_with_filter'));
+    });
+
+    testWidgets('getPictures serializes the iOS scanner options',
+        (WidgetTester tester) async {
+      const MethodChannel channel = MethodChannel('cunning_document_scanner');
+
+      Map<dynamic, dynamic>? passedOptions;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        (MethodCall methodCall) {
+          passedOptions = (methodCall.arguments as Map)['iosScannerOptions']
+              as Map<dynamic, dynamic>?;
+          return Future.value(<String>['fake_url']);
+        },
+      );
+
+      await CunningDocumentScanner.getPictures(
+        iosScannerOptions: IosScannerOptions(
+          imageFormat: IosImageFormat.jpg,
+          jpgCompressionQuality: 0.5,
+          defaultFilter: IosDocumentFilter.blackAndWhite,
+          showFilterBar: false,
+        ),
+      );
+
+      expect(passedOptions, isNotNull);
+      expect(passedOptions!['imageFormat'], equals('jpg'));
+      expect(passedOptions!['jpgCompressionQuality'], equals(0.5));
+      expect(passedOptions!['defaultFilter'], equals('blackAndWhite'));
+      expect(passedOptions!['showFilterBar'], isFalse);
+    });
+
+    test('IosScannerOptions rejects an out-of-range compression quality', () {
+      expect(
+        () => IosScannerOptions(jpgCompressionQuality: 1.5),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => IosScannerOptions(jpgCompressionQuality: -0.1),
         throwsA(isA<ArgumentError>()),
       );
     });

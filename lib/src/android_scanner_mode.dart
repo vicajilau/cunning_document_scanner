@@ -10,7 +10,9 @@ enum AndroidScannerMode {
   baseWithFilter,
 }
 
+/// Serialization of [AndroidScannerMode] for the method channel.
 extension AndroidScannerModeValue on AndroidScannerMode {
+  /// The identifier sent over the method channel.
   String get methodChannelValue {
     switch (this) {
       case AndroidScannerMode.full:

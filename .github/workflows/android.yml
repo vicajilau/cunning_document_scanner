@@ -37,3 +37,8 @@ jobs:
           cd example
           flutter pub get
           flutter build apk --debug
+
+      # Runs after the APK build, which injects the Gradle wrapper (it is gitignored).
+      - name: Run Android Unit Tests
+        working-directory: example/android
+        run: ./gradlew :cunning_document_scanner:testDebugUnitTest

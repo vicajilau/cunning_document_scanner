@@ -17,6 +17,9 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Check Version Consistency
+        run: ./tool/check_versions.sh
+
       - name: Install Dependencies
         run: flutter pub get
 

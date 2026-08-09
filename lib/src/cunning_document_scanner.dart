@@ -1,8 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'android_scanner_mode.dart';
 import 'exceptions.dart';
@@ -26,16 +24,25 @@ class CunningDocumentScanner {
   /// [iosScannerOptions] is a set of options for the iOS scanner.
   /// [asPdf] is a flag that indicates if the scanned pages should be compiled and returned as a single PDF file path.
   ///
-  /// Returns a list of paths to the scanned images, or null if the user cancels the operation.
+  /// Returns a list of paths to the scanned images, or null if the user cancels
+  /// the operation. Cancellation reports null on every platform.
+  ///
+  /// The returned files live in a plugin-owned cache directory and are removed by
+  /// [cleanCache]. Copy anything you need to keep to your own storage.
+  ///
+  /// On iOS the camera permission is requested natively, and only when the flow
+  /// actually opens the camera. [ScannerSource.gallery] uses the system photo
+  /// picker, which requires no permission and prompts for nothing.
   ///
   /// Throws an [ArgumentError] if [noOfPages] is less than or equal to 0.
-  /// Throws a [CunningDocumentScannerException] if camera permission is denied or a scanning error occurs.
+  /// Throws a [CunningDocumentScannerException] if camera permission is denied
+  /// (with `code` `'permission_denied'`) or a scanning error occurs.
   static Future<List<String>?> getPictures({
     int noOfPages = 100,
     @Deprecated('Use scannerSource instead')
     bool isGalleryImportAllowed = false,
     ScannerSource? scannerSource,
-    AndroidScannerMode? androidScannerMode = AndroidScannerMode.full,
+    AndroidScannerMode androidScannerMode = AndroidScannerMode.full,
     IosScannerOptions? iosScannerOptions,
     bool asPdf = false,
   }) async {
@@ -47,44 +54,53 @@ class CunningDocumentScanner {
       );
     }
 
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final Map<Permission, PermissionStatus> statuses = await [
-        Permission.camera,
-      ].request();
-      if (statuses.containsValue(PermissionStatus.denied) ||
-          statuses.containsValue(PermissionStatus.permanentlyDenied)) {
-        throw const CunningDocumentScannerException.permissionDenied(
-            'Camera permission not granted');
-      }
-    }
-
     final resolvedSource = scannerSource ??
         (isGalleryImportAllowed
             ? ScannerSource.cameraAndGallery
             : ScannerSource.camera);
 
-    if (kDebugMode) {
-      print(
-          "CunningDocumentScanner: scannerSource=$scannerSource, resolvedSource=$resolvedSource, methodChannelValue=${resolvedSource.methodChannelValue}");
+    final List<dynamic>? pictures;
+    try {
+      pictures = await _channel.invokeMethod<List<dynamic>>('getPictures', {
+        'noOfPages': noOfPages,
+        'isGalleryImportAllowed': isGalleryImportAllowed,
+        'scannerSource': resolvedSource.methodChannelValue,
+        'androidScannerMode': androidScannerMode.methodChannelValue,
+        'asPdf': asPdf,
+        if (iosScannerOptions != null)
+          'iosScannerOptions': iosScannerOptions.toMap(),
+      });
+    } on PlatformException catch (e) {
+      // The native side reports failures as PlatformException. Surfacing them as
+      // the package's own exception keeps callers on a single catch clause.
+      throw CunningDocumentScannerException(
+        e.message ?? 'The document scan failed',
+        code: e.code,
+      );
     }
 
-    final List<dynamic>? pictures = await _channel.invokeMethod('getPictures', {
-      'noOfPages': noOfPages,
-      'isGalleryImportAllowed': isGalleryImportAllowed,
-      'scannerSource': resolvedSource.methodChannelValue,
-      'androidScannerMode': androidScannerMode?.methodChannelValue,
-      'asPdf': asPdf,
-      if (iosScannerOptions != null)
-        'iosScannerOptions': {
-          'imageFormat': iosScannerOptions.imageFormat.name,
-          'jpgCompressionQuality': iosScannerOptions.jpgCompressionQuality,
-        }
-    });
-    return pictures?.map((e) => e as String).toList();
+    // Android historically reported cancellation as an empty list while iOS
+    // reported null. Both are normalized to null here.
+    if (pictures == null || pictures.isEmpty) {
+      return null;
+    }
+    return pictures.map((e) => e as String).toList();
   }
 
-  /// Clears temporary scanned images and generated PDF files from cache.
+  /// Clears the temporary scanned images and generated PDF files this plugin created.
+  ///
+  /// Only files written by the plugin are removed; files belonging to the host
+  /// application are left untouched.
+  ///
+  /// Throws a [CunningDocumentScannerException] if the files cannot be removed.
   static Future<void> cleanCache() async {
-    await _channel.invokeMethod('cleanCache');
+    try {
+      await _channel.invokeMethod<void>('cleanCache');
+    } on PlatformException catch (e) {
+      throw CunningDocumentScannerException(
+        e.message ?? 'Failed to clean the scanner cache',
+        code: e.code,
+      );
+    }
   }
 }
