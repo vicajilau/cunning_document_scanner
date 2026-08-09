@@ -1,10 +1,21 @@
 name: Android CI
 
+# Dart paths are included because this job builds the example app, so a change to
+# the plugin's Dart API can break it even when no Kotlin file is touched.
 on:
   push:
     branches: [ "master", "main" ]
+    paths: &android-paths
+      - 'android/**'
+      - 'example/android/**'
+      - 'lib/**'
+      - 'example/lib/**'
+      - 'pubspec.yaml'
+      - 'example/pubspec.yaml'
+      - '.github/workflows/android.yml'
   pull_request:
     branches: [ "master", "main" ]
+    paths: *android-paths
 
 jobs:
   android:

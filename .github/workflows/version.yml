@@ -1,0 +1,29 @@
+name: Version CI
+
+# The package version is declared in four places that have drifted apart before.
+# This is plain bash with no toolchain to install, so it runs on its own rather
+# than riding along with a platform job.
+on:
+  push:
+    branches: [ "master", "main" ]
+    paths: &version-paths
+      - 'pubspec.yaml'
+      - 'ios/cunning_document_scanner.podspec'
+      - 'android/build.gradle.kts'
+      - 'CHANGELOG.md'
+      - 'tool/check_versions.sh'
+      - '.github/workflows/version.yml'
+  pull_request:
+    branches: [ "master", "main" ]
+    paths: *version-paths
+
+jobs:
+  version:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check Version Consistency
+        run: ./tool/check_versions.sh

@@ -1,10 +1,23 @@
 name: Flutter CI
 
+# Dart-only concerns. Native sources are covered by android.yml and ios.yml, and
+# version consistency by version.yml, so touching only Swift or Kotlin skips this.
 on:
   push:
     branches: [ "master", "main" ]
+    paths: &dart-paths
+      - 'lib/**'
+      - 'test/**'
+      - 'example/lib/**'
+      - 'example/test/**'
+      - 'pubspec.yaml'
+      - 'example/pubspec.yaml'
+      - 'analysis_options.yaml'
+      - 'example/analysis_options.yaml'
+      - '.github/workflows/flutter.yml'
   pull_request:
     branches: [ "master", "main" ]
+    paths: *dart-paths
 
 jobs:
   flutter:
@@ -16,9 +29,6 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-
-      - name: Check Version Consistency
-        run: ./tool/check_versions.sh
 
       - name: Install Dependencies
         run: flutter pub get

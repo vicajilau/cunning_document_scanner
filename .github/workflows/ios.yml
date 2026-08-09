@@ -1,10 +1,22 @@
 name: iOS CI
 
+# Dart paths are included because this job builds the example app, so a change to
+# the plugin's Dart API can break it even when no Swift file is touched.
 on:
   push:
     branches: [ "master", "main" ]
+    paths: &ios-paths
+      - 'ios/**'
+      - 'example/ios/**'
+      - '.swiftlint.yml'
+      - 'lib/**'
+      - 'example/lib/**'
+      - 'pubspec.yaml'
+      - 'example/pubspec.yaml'
+      - '.github/workflows/ios.yml'
   pull_request:
     branches: [ "master", "main" ]
+    paths: *ios-paths
 
 jobs:
   ios:
