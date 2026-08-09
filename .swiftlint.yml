@@ -7,10 +7,27 @@ excluded:
   - .swiftpm
 
 disabled_rules:
-  - type_body_length
-  - file_length
-  - function_body_length
-  - cyclomatic_complexity
-  - line_length
   - identifier_name
   - trailing_whitespace
+
+# Raised rather than disabled: these are the rules that flag the cropper view
+# controller growing without bound, which is exactly what we want to hear about.
+line_length:
+  warning: 140
+  error: 200
+
+file_length:
+  warning: 800
+  error: 1200
+
+type_body_length:
+  warning: 700
+  error: 1000
+
+function_body_length:
+  warning: 100
+  error: 160
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25

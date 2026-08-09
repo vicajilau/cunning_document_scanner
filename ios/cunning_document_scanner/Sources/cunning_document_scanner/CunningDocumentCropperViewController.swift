@@ -36,6 +36,21 @@ enum DocumentFilter: Int, CaseIterable {
         case .blackAndWhite: return "B&W"
         }
     }
+
+    /// The identifier used on the Dart method channel.
+    var methodChannelValue: String {
+        switch self {
+        case .original: return "original"
+        case .color: return "color"
+        case .grayscale: return "grayscale"
+        case .blackAndWhite: return "blackAndWhite"
+        }
+    }
+
+    /// Builds a filter from its Dart method channel identifier, falling back to `.original`.
+    init(methodChannelValue: String) {
+        self = DocumentFilter.allCases.first { $0.methodChannelValue == methodChannelValue } ?? .original
+    }
 }
 
 /// View controller that provides an interactive multi-page document cropping interface.
@@ -125,15 +140,27 @@ class CunningDocumentCropperViewController: UIViewController {
     private var normBottomLeft = CGPoint(x: 0.15, y: 0.15)
     private var normBottomRight = CGPoint(x: 0.85, y: 0.15)
     
+    /// Whether the filter selector is shown. When false the filter bar collapses to zero height
+    /// and every page keeps `defaultFilter`.
+    private let showFilterBar: Bool
+
     /// Initializes a new cropper view controller with a list of images and a localizer.
     /// - Parameters:
     ///   - images: The list of raw images to crop.
+    ///   - defaultFilter: The filter preselected for every page.
+    ///   - showFilterBar: Whether the user may change the filter.
     ///   - localize: A closure to retrieve localized translation strings.
-    init(images: [UIImage], localize: @escaping (String, String) -> String) {
+    init(
+        images: [UIImage],
+        defaultFilter: DocumentFilter = .original,
+        showFilterBar: Bool = true,
+        localize: @escaping (String, String) -> String
+    ) {
         self.localize = localize
         self.images = images
+        self.showFilterBar = showFilterBar
         self.savedCoordinates = Array(repeating: nil, count: images.count)
-        self.selectedFilters = Array(repeating: .original, count: images.count)
+        self.selectedFilters = Array(repeating: defaultFilter, count: images.count)
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -201,14 +228,15 @@ class CunningDocumentCropperViewController: UIViewController {
         
         // Filter Bar configuration
         filterBar.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        filterBar.isHidden = !showFilterBar
         view.addSubview(filterBar)
-        
+
         filterSegmentedControl.removeAllSegments()
         for (index, filter) in DocumentFilter.allCases.enumerated() {
             let title = localize(filter.titleKey, filter.defaultTitle)
             filterSegmentedControl.insertSegment(withTitle: title, at: index, animated: false)
         }
-        filterSegmentedControl.selectedSegmentIndex = 0
+        filterSegmentedControl.selectedSegmentIndex = selectedFilters.first?.rawValue ?? 0
         filterSegmentedControl.selectedSegmentTintColor = .systemBlue
         filterSegmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.white], for: .selected)
         filterSegmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.lightGray], for: .normal)
@@ -316,7 +344,7 @@ class CunningDocumentCropperViewController: UIViewController {
             filterBar.bottomAnchor.constraint(equalTo: bottomBar.topAnchor),
             filterBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             filterBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            filterBar.heightAnchor.constraint(equalToConstant: 44),
+            filterBar.heightAnchor.constraint(equalToConstant: showFilterBar ? 44 : 0),
             
             filterSegmentedControl.centerXAnchor.constraint(equalTo: filterBar.centerXAnchor),
             filterSegmentedControl.centerYAnchor.constraint(equalTo: filterBar.centerYAnchor),

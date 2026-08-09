@@ -22,6 +22,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
   int _noOfPages = 100;
   ScannerSource _scannerSource = ScannerSource.cameraAndGallery;
   AndroidScannerMode _androidScannerMode = AndroidScannerMode.full;
+  IosDocumentFilter _iosDefaultFilter = IosDocumentFilter.original;
+  bool _iosShowFilterBar = true;
 
   @override
   void initState() {
@@ -178,6 +180,41 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
               },
             ),
           ),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: DropdownButtonFormField<IosDocumentFilter>(
+              decoration: const InputDecoration(
+                labelText: "Default Cropper Filter (iOS Only)",
+                border: OutlineInputBorder(),
+              ),
+              initialValue: _iosDefaultFilter,
+              items: IosDocumentFilter.values.map((filter) {
+                return DropdownMenuItem<IosDocumentFilter>(
+                  value: filter,
+                  child: Text(filter.name),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _iosDefaultFilter = value;
+                  });
+                }
+              },
+            ),
+          ),
+          SwitchListTile(
+            title: const Text("Show filter bar (iOS Only)"),
+            subtitle: const Text(
+                "When off, every page keeps the default filter above"),
+            value: _iosShowFilterBar,
+            onChanged: (value) {
+              setState(() {
+                _iosShowFilterBar = value;
+              });
+            },
+          ),
           const SizedBox(height: 10),
           ElevatedButton(
               onPressed: onPressed, child: const Text("Add Pictures")),
@@ -244,6 +281,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
               iosScannerOptions: IosScannerOptions(
                 imageFormat: IosImageFormat.jpg,
                 jpgCompressionQuality: 0.5,
+                defaultFilter: _iosDefaultFilter,
+                showFilterBar: _iosShowFilterBar,
               )) ??
           [];
       if (!mounted) return;

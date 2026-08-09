@@ -6,6 +6,7 @@ class CunningDocumentScannerException implements Exception {
   /// Optional code to categorize errors (e.g. 'permission_denied').
   final String? code;
 
+  /// Creates an exception with a [message] and an optional [code].
   const CunningDocumentScannerException(this.message, {this.code});
 
   /// Named constructor for permission errors.

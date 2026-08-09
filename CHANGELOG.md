@@ -1,3 +1,43 @@
+## 3.0.0
+
+> [!IMPORTANT]
+> This release changes where scanned files are written and how cancellation is reported.
+> Read the breaking changes below before upgrading.
+
+### Breaking changes
+* **`permission_handler` is no longer a dependency.** The iOS camera permission is now requested natively through `AVCaptureDevice`, which is exactly the API `permission_handler` wrapped for `Permission.camera`. If your app imports `package:permission_handler` **without declaring it in your own `pubspec.yaml`** — relying on it arriving transitively through this plugin — add it explicitly:
+  ```bash
+  flutter pub add permission_handler
+  ```
+  Nothing else changes: permission refusals still throw `CunningDocumentScannerException` with `code: 'permission_denied'` and the same message. Apps that already declare `permission_handler` are unaffected.
+* **iOS output moved out of the `Documents` directory.** Scans and generated PDFs are now written to a private `Library/Caches/cunning_document_scanner/` subdirectory. The returned paths are still absolute and readable, but the files are no longer backed up to iCloud and may be reclaimed by the system. Copy anything you need to keep to your own storage.
+* **`getPictures()` now returns `null` on cancellation on every platform.** Android previously returned an empty list, contradicting the documented contract. Empty native results are normalized to `null`.
+* **Native errors are reported as `CunningDocumentScannerException`.** `getPictures()` and `cleanCache()` no longer leak `PlatformException`; the platform error code is preserved in `CunningDocumentScannerException.code`.
+* **`androidScannerMode` is no longer nullable.** It defaults to `AndroidScannerMode.full`; remove any explicit `null`.
+* **`IosScannerOptions` is no longer a `const` constructor.** It now validates `jpgCompressionQuality` and throws an `ArgumentError` for values outside 0.0 - 1.0.
+
+### Fixed
+* **A `restricted` camera authorization was ignored on iOS.** Devices under parental controls or an MDM policy report `restricted`, which the Dart-side check did not treat as a refusal, so the scanner opened a camera the user could never grant access to. The native check covers it.
+* **The camera permission was requested even for gallery-only flows.** `ScannerSource.gallery` uses the out-of-process system photo picker, which needs no permission; it no longer prompts for anything.
+* **`cleanCache()` could delete host application data.** On iOS it removed every `.pdf`, `.jpg` and `.png` in the app's `Documents` directory; on Android it matched by file extension in `cacheDir` and the pictures directory. Both now delete only files the plugin itself wrote, identified by the `DOCUMENT_SCAN_` prefix and the private storage directory.
+* **Android gallery multi-selection was broken.** The picker requested multiple selection but only read `Intent.data`, so selecting more than one image reported "No image selected". Selections are now read from `clipData` and every image is cropped in sequence.
+* **Android gallery imports ignored `noOfPages`**, hardcoding a single page.
+* Concurrent `getPictures()` calls no longer orphan the first call's `Future`; the second call fails fast with an `ALREADY_ACTIVE` error.
+* Calling the plugin while detached from an `Activity` returns a `NO_ACTIVITY` error instead of crashing with `UninitializedPropertyAccessException`.
+* iOS image write failures are surfaced as errors instead of returning paths to files that were never created.
+* Removed the leftover Huawei `com.huawei.hms.ml.DEPENDENCY` manifest entry, which was still being merged into every host application after HMS support was dropped in 2.6.0.
+
+### Added
+* `IosScannerOptions.defaultFilter` and `IosScannerOptions.showFilterBar` expose the iOS cropper filters (`IosDocumentFilter.original`, `.color`, `.grayscale`, `.blackAndWhite`) to Dart.
+* Kotlin unit tests for the method channel argument helpers, run in CI.
+* `tool/check_versions.sh`, run in CI, fails the build when `pubspec.yaml`, the podspec, `android/build.gradle.kts` and the changelog disagree on the version.
+
+### Changed
+* Removed the unconditional debug logging from the Android plugin and the debug `print` from the Dart layer; both leaked file paths and URIs into release logs.
+* `plugin_platform_interface` moved to `dev_dependencies`; it was only ever used by tests.
+* Added `topics` and `issue_tracker` to `pubspec.yaml`.
+* Stricter analysis (`strict-casts`, `strict-raw-types`, `public_member_api_docs`) and raised, rather than disabled, the SwiftLint size and complexity rules.
+
 ## 2.8.0
 ### iOS
 * Added document image filter options (**Original**, **Color**, **Grayscale**, **B&W**) to the custom document cropper (`CunningDocumentCropperViewController`) when importing images from the gallery, achieving feature parity with Android ML Kit (fixes #153).

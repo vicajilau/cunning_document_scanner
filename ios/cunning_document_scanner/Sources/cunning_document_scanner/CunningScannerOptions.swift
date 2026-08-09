@@ -1,5 +1,18 @@
 import Foundation
 
+/// Errors raised while producing the scanner output files.
+enum CunningScannerError: LocalizedError {
+    /// The page at the given index could not be encoded to the requested image format.
+    case encodingFailed(page: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .encodingFailed(let page):
+            return "Failed to encode scanned page \(page) to the requested image format"
+        }
+    }
+}
+
 /// Defines the output image format configurations.
 enum CunningScannerImageFormat: String {
     case jpg
@@ -33,6 +46,12 @@ struct CunningScannerOptions {
     /// Maximum number of pages allowed for scanning.
     let noOfPages: Int
 
+    /// The filter preselected when the custom cropper opens a page.
+    let defaultFilter: DocumentFilter
+
+    /// Whether the filter selector is shown in the custom cropper.
+    let showFilterBar: Bool
+
     /// Creates scanner options with default settings.
     init() {
         self.imageFormat = .png
@@ -41,6 +60,8 @@ struct CunningScannerOptions {
         self.isGalleryImportAllowed = false
         self.scannerSource = .camera
         self.noOfPages = 100
+        self.defaultFilter = .original
+        self.showFilterBar = true
     }
 
     /// Creates scanner options with specified settings.
@@ -50,7 +71,9 @@ struct CunningScannerOptions {
         asPdf: Bool,
         isGalleryImportAllowed: Bool,
         scannerSource: CunningScannerSource,
-        noOfPages: Int = 100
+        noOfPages: Int = 100,
+        defaultFilter: DocumentFilter = .original,
+        showFilterBar: Bool = true
     ) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
@@ -58,6 +81,8 @@ struct CunningScannerOptions {
         self.isGalleryImportAllowed = isGalleryImportAllowed
         self.scannerSource = scannerSource
         self.noOfPages = noOfPages
+        self.defaultFilter = defaultFilter
+        self.showFilterBar = showFilterBar
     }
 
     /// Factory method to build a CunningScannerOptions object from incoming Flutter MethodChannel arguments.
@@ -76,6 +101,8 @@ struct CunningScannerOptions {
         let scannerOptionsDict = arguments["iosScannerOptions"] as? [String: Any]
         let imageFormat = (scannerOptionsDict?["imageFormat"] as? String) ?? "png"
         let jpgCompressionQuality = (scannerOptionsDict?["jpgCompressionQuality"] as? Double) ?? 1.0
+        let defaultFilterName = (scannerOptionsDict?["defaultFilter"] as? String) ?? "original"
+        let showFilterBar = (scannerOptionsDict?["showFilterBar"] as? Bool) ?? true
 
         return CunningScannerOptions(
             imageFormat: CunningScannerImageFormat(rawValue: imageFormat) ?? .png,
@@ -83,7 +110,9 @@ struct CunningScannerOptions {
             asPdf: asPdf,
             isGalleryImportAllowed: isGalleryImportAllowed,
             scannerSource: scannerSource,
-            noOfPages: noOfPages
+            noOfPages: noOfPages,
+            defaultFilter: DocumentFilter(methodChannelValue: defaultFilterName),
+            showFilterBar: showFilterBar
         )
     }
 }

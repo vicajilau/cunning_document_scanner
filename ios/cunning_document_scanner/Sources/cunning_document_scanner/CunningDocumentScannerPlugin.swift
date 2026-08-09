@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 import Vision
@@ -14,9 +15,18 @@ public class CunningDocumentScannerPlugin: NSObject,
     UIImagePickerControllerDelegate,
     UINavigationControllerDelegate {
     
+    /// Name of the private subdirectory, inside the app caches directory, holding plugin output.
+    static let storageDirectoryName = "cunning_document_scanner"
+
+    /// Filename prefix applied to every file the plugin writes.
+    static let scanFilePrefix = "DOCUMENT_SCAN_"
+
     /// The Flutter channel result callback pointer to return document paths to Dart/Flutter.
+    ///
+    /// Set for the duration of a single `getPictures` flow and cleared by `finish(_:)`.
+    /// A `FlutterResult` must be invoked exactly once, so it is consumed rather than reused.
     var resultChannel: FlutterResult?
-    
+
     /// The native VNDocumentCameraViewController presenting instance.
     var presentingController: VNDocumentCameraViewController?
     
@@ -51,6 +61,18 @@ public class CunningDocumentScannerPlugin: NSObject,
             return
         }
 
+        // A single result callback is held at a time. Starting a second scan would orphan
+        // the first one (its Dart Future would never complete) and invoking a FlutterResult
+        // twice traps, so the concurrent call is rejected instead.
+        guard resultChannel == nil else {
+            result(FlutterError(
+                code: "ALREADY_ACTIVE",
+                message: "A document scan is already in progress",
+                details: nil
+            ))
+            return
+        }
+
         scannerOptions = CunningScannerOptions.fromArguments(args: call.arguments)
         let presentedVC = rootViewController
         resultChannel = result
@@ -78,7 +100,7 @@ public class CunningDocumentScannerPlugin: NSObject,
             galleryAction.setValue(UIColor.systemBlue, forKey: "titleTextColor")
 
             let cancelAction = UIAlertAction(title: labelCancel, style: .cancel) { _ in
-                self.resultChannel?(nil)
+                self.finish(nil)
             }
             cancelAction.setValue(UIColor.systemRed, forKey: "titleTextColor")
             
@@ -99,15 +121,61 @@ public class CunningDocumentScannerPlugin: NSObject,
         }
     }
 
+    /// Runs `onGranted` once camera access is available, failing the call otherwise.
+    ///
+    /// This is the same `AVCaptureDevice` API the `permission_handler` package wrapped for
+    /// `Permission.camera`, called directly so the plugin carries no permission dependency.
+    /// Asking here rather than from Dart also means flows that never open the camera
+    /// (`ScannerSource.gallery`, which uses the out-of-process photo picker) prompt for nothing.
+    func withCameraAccess(_ onGranted: @escaping () -> Void) {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            onGranted()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                // The completion handler runs on an arbitrary queue; presenting needs the main one.
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    if granted {
+                        onGranted()
+                    } else {
+                        self.finishWithPermissionDenied()
+                    }
+                }
+            }
+        // `.restricted` covers parental controls and MDM policy. It used to slip through the
+        // Dart-side check and open a camera the user could never grant access to.
+        case .denied, .restricted:
+            finishWithPermissionDenied()
+        @unknown default:
+            finishWithPermissionDenied()
+        }
+    }
+
+    /// Fails the pending call with the permission error contract documented for Dart.
+    private func finishWithPermissionDenied() {
+        finish(FlutterError(
+            code: "permission_denied",
+            message: "Camera permission not granted",
+            details: nil
+        ))
+    }
+
     /// Launches the native system document camera (VNDocumentCameraViewController).
     func openCamera(from presentedVC: UIViewController?) {
-        if VNDocumentCameraViewController.isSupported {
-            presentingController = VNDocumentCameraViewController()
-            presentingController?.delegate = self
-            presentedVC?.present(presentingController!, animated: true)
-        } else {
-            let errorMsg = "Document camera is not available on this device"
-            resultChannel?(FlutterError(code: "UNAVAILABLE", message: errorMsg, details: nil))
+        withCameraAccess { [weak self] in
+            guard let self = self else { return }
+
+            guard VNDocumentCameraViewController.isSupported else {
+                let errorMsg = "Document camera is not available on this device"
+                self.finish(FlutterError(code: "UNAVAILABLE", message: errorMsg, details: nil))
+                return
+            }
+
+            let controller = VNDocumentCameraViewController()
+            controller.delegate = self
+            self.presentingController = controller
+            presentedVC?.present(controller, animated: true)
         }
     }
 
@@ -129,17 +197,17 @@ public class CunningDocumentScannerPlugin: NSObject,
         }
     }
 
-    /// Clears temporary scan files (.pdf, .jpg, .png) created by the plugin from local documents directory.
+    /// Clears the files this plugin created, and only those.
+    ///
+    /// Everything the plugin writes lives inside a private subdirectory of the app's
+    /// caches directory, so cleaning is a matter of removing that one directory. Files
+    /// belonging to the host application are never touched.
     func cleanCache(result: FlutterResult) {
         let fileManager = FileManager.default
-        let docDir = getDocumentsDirectory()
+        let storageDir = getScanStorageDirectory()
         do {
-            let files = try fileManager.contentsOfDirectory(atPath: docDir.path)
-            for file in files {
-                if file.hasSuffix(".pdf") || file.hasSuffix(".jpg") || file.hasSuffix(".png") {
-                    let filePath = docDir.appendingPathComponent(file)
-                    try fileManager.removeItem(at: filePath)
-                }
+            if fileManager.fileExists(atPath: storageDir.path) {
+                try fileManager.removeItem(at: storageDir)
             }
             result(nil)
         } catch {
@@ -147,10 +215,20 @@ public class CunningDocumentScannerPlugin: NSObject,
         }
     }
 
-    /// Helper to retrieve the app's documents directory URL.
-    func getDocumentsDirectory() -> URL {
-        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        return paths[0]
+    /// The private directory where scans and generated PDFs are written.
+    ///
+    /// A dedicated subdirectory of `Library/Caches` is used rather than the app's
+    /// `Documents` directory: these files are regenerable scratch output, they must not
+    /// be backed up to iCloud, and keeping them isolated makes `cleanCache()` incapable
+    /// of deleting host application data.
+    func getScanStorageDirectory() -> URL {
+        let fileManager = FileManager.default
+        let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let storageDir = cachesDir.appendingPathComponent(Self.storageDirectoryName, isDirectory: true)
+        if !fileManager.fileExists(atPath: storageDir.path) {
+            try? fileManager.createDirectory(at: storageDir, withIntermediateDirectories: true)
+        }
+        return storageDir
     }
 
     /// Helper to fetch localized string translations for keys, falling back to a default value.
@@ -178,13 +256,38 @@ public class CunningDocumentScannerPlugin: NSObject,
         return resolvedBundle.localizedString(forKey: key, value: defaultValue, table: nil)
     }
 
+    /// Presents the custom cropper for the given images, configured from the current options.
+    func presentCropper(with images: [UIImage]) {
+        let cropper = CunningDocumentCropperViewController(
+            images: images,
+            defaultFilter: scannerOptions.defaultFilter,
+            showFilterBar: scannerOptions.showFilterBar
+        ) { [weak self] key, dValue in
+            return self?.getLocalizedOption(key, defaultValue: dValue) ?? dValue
+        }
+        cropper.delegate = self
+        cropper.modalPresentationStyle = .fullScreen
+        rootViewController?.present(cropper, animated: true)
+    }
+
+    /// Delivers a value to Flutter exactly once and releases the pending result callback.
+    ///
+    /// Every exit path of a `getPictures` flow funnels through here so the callback can
+    /// never be invoked twice (which traps) nor left dangling (which would block the next call).
+    func finish(_ value: Any?) {
+        guard let channel = resultChannel else { return }
+        resultChannel = nil
+        channel(value)
+    }
+
     /// Writes scanned or cropped images to local files (or compiles them to a single PDF) and returns paths to Flutter.
     func processSelectedImages(_ images: [UIImage]) {
-        let tempDirPath = getDocumentsDirectory()
+        let storageDir = getScanStorageDirectory()
         let currentDateTime = Date()
         let df = DateFormatter()
         df.dateFormat = "yyyyMMdd-HHmmss"
         let formattedDate = df.string(from: currentDateTime)
+        let prefix = Self.scanFilePrefix
 
         if scannerOptions.asPdf {
             let pdfDocument = PDFDocument()
@@ -193,29 +296,41 @@ public class CunningDocumentScannerPlugin: NSObject,
                     pdfDocument.insert(pdfPage, at: i)
                 }
             }
-            let url = tempDirPath.appendingPathComponent(formattedDate + ".pdf")
+            let url = storageDir.appendingPathComponent("\(prefix)\(formattedDate).pdf")
             if pdfDocument.write(to: url) {
-                resultChannel?([url.path])
+                finish([url.path])
             } else {
                 let err = FlutterError(code: "ERROR", message: "Failed to generate PDF document", details: nil)
-                resultChannel?(err)
+                finish(err)
             }
         } else {
             var filenames: [String] = []
-            for (i, page) in images.enumerated() {
-                let ext = scannerOptions.imageFormat.rawValue
-                let url = tempDirPath.appendingPathComponent("\(formattedDate)-\(i).\(ext)")
+            do {
+                for (i, page) in images.enumerated() {
+                    let ext = scannerOptions.imageFormat.rawValue
+                    let url = storageDir.appendingPathComponent("\(prefix)\(formattedDate)-\(i).\(ext)")
 
-                switch scannerOptions.imageFormat {
-                case .jpg:
-                    try? page.jpegData(compressionQuality: scannerOptions.jpgCompressionQuality)?.write(to: url)
-                case .png:
-                    try? page.pngData()?.write(to: url)
+                    let data: Data?
+                    switch scannerOptions.imageFormat {
+                    case .jpg:
+                        data = page.jpegData(compressionQuality: scannerOptions.jpgCompressionQuality)
+                    case .png:
+                        data = page.pngData()
+                    }
+
+                    guard let imageData = data else {
+                        throw CunningScannerError.encodingFailed(page: i)
+                    }
+                    // Write failures used to be swallowed, handing Flutter paths to files
+                    // that were never created. They are surfaced as errors instead.
+                    try imageData.write(to: url)
+                    filenames.append(url.path)
                 }
-
-                filenames.append(url.path)
+            } catch {
+                finish(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
+                return
             }
-            resultChannel?(filenames)
+            finish(filenames)
         }
     }
 
@@ -237,7 +352,7 @@ public class CunningDocumentScannerPlugin: NSObject,
 
     /// Delegate callback for cancelled camera scans.
     public func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
-        resultChannel?(nil)
+        finish(nil)
         presentingController?.dismiss(animated: true)
     }
 
@@ -246,7 +361,7 @@ public class CunningDocumentScannerPlugin: NSObject,
         _ controller: VNDocumentCameraViewController,
         didFailWithError error: Error
     ) {
-        resultChannel?(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
+        finish(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
         presentingController?.dismiss(animated: true)
     }
 
@@ -259,7 +374,7 @@ public class CunningDocumentScannerPlugin: NSObject,
     ) {
         guard let image = info[.originalImage] as? UIImage else {
             picker.dismiss(animated: true) {
-                self.resultChannel?(nil)
+                self.finish(nil)
             }
             return
         }
@@ -267,19 +382,14 @@ public class CunningDocumentScannerPlugin: NSObject,
         let downscaledImage = image.downscaled(toMaxDimension: 2048)
         
         picker.dismiss(animated: true) {
-            let cropper = CunningDocumentCropperViewController(images: [downscaledImage]) { [weak self] key, dValue in
-                return self?.getLocalizedOption(key, defaultValue: dValue) ?? dValue
-            }
-            cropper.delegate = self
-            cropper.modalPresentationStyle = .fullScreen
-            self.rootViewController?.present(cropper, animated: true)
+            self.presentCropper(with: [downscaledImage])
         }
     }
 
     /// Delegate callback for legacy picker cancellations.
     public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true) {
-            self.resultChannel?(nil)
+            self.finish(nil)
         }
     }
 }
@@ -293,7 +403,7 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
     public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         if results.isEmpty {
             picker.dismiss(animated: true) {
-                self.resultChannel?(nil)
+                self.finish(nil)
             }
             return
         }
@@ -325,18 +435,11 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
             }
             if validImages.isEmpty {
                 picker.dismiss(animated: true) {
-                    self.resultChannel?(nil)
+                    self.finish(nil)
                 }
             } else {
                 picker.dismiss(animated: true) {
-                    let cropper = CunningDocumentCropperViewController(
-                        images: validImages
-                    ) { [weak self] key, dValue in
-                        return self?.getLocalizedOption(key, defaultValue: dValue) ?? dValue
-                    }
-                    cropper.delegate = self
-                    cropper.modalPresentationStyle = .fullScreen
-                    self.rootViewController?.present(cropper, animated: true)
+                    self.presentCropper(with: validImages)
                 }
             }
         }
@@ -357,7 +460,7 @@ extension CunningDocumentScannerPlugin: CunningDocumentCropperDelegate {
     /// Handles cancel/abort events from the cropper view controller.
     func didCancelCropping() {
         rootViewController?.dismiss(animated: true) {
-            self.resultChannel?(nil)
+            self.finish(nil)
         }
     }
 }

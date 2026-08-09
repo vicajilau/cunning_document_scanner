@@ -74,8 +74,11 @@ Add the [NSCameraUsageDescription](https://developer.apple.com/documentation/bun
 <string>Access to the camera is required to scan documents.</string>
 ```
 
+> [!IMPORTANT]
+> This key is mandatory. iOS terminates any app that requests camera access without it.
+
 > [!NOTE]
-> Since this plugin has migrated to Swift Package Manager (SPM), and the `permission_handler` dependency (version 12.0.2+) also supports SPM, permissions are now resolved automatically. The dependency scans your app's `Info.plist` and compiles only the code for the permission keys you have declared (e.g., `NSCameraUsageDescription`). You do not need to manually configure preprocessor macros in your `Podfile`.
+> The plugin requests the camera permission itself, through `AVCaptureDevice`, and carries **no permission dependency** — there is nothing to add to your `pubspec.yaml` and no preprocessor macro to configure in your `Podfile`. The permission is only requested when the flow actually opens the camera: `ScannerSource.gallery` uses the system photo picker and prompts for nothing.
 
 #### Localization Configuration
 To ensure native iOS UI components (like the document camera, photo library picker, and our source selection menu) are displayed in the user's preferred language (e.g., Spanish), you can enable mixed localizations in your app's `ios/Runner/Info.plist`:
@@ -100,12 +103,24 @@ The easiest way to get a list of images is:
    final imagesPath = await CunningDocumentScanner.getPictures();
 ```
 
+`getPictures()` returns `null` when the user cancels, on every platform.
+
+### File Lifetime
+
+The returned paths point to files in a **plugin-owned cache directory** (`Library/Caches/cunning_document_scanner/` on iOS, the app cache and pictures directories on Android). They are not backed up and the system may reclaim them. Copy anything you need to keep to your own storage.
+
+Call `cleanCache()` to remove them yourself. It only deletes files this plugin wrote — your application's own images and PDFs are never touched:
+
+```dart
+   await CunningDocumentScanner.cleanCache();
+```
+
 ### Error Handling
 
 The plugin throws standard Dart exceptions when invalid parameters are supplied or permissions are denied:
 
-* **`ArgumentError`**: Thrown if `noOfPages` is less than or equal to `0`.
-* **`CunningDocumentScannerException`**: Thrown if camera permission is denied by the user, or if a native scanning error occurs.
+* **`ArgumentError`**: Thrown if `noOfPages` is less than or equal to `0`, or if `jpgCompressionQuality` is outside `0.0` - `1.0`.
+* **`CunningDocumentScannerException`**: Thrown if camera permission is denied by the user, or if a native scanning error occurs. The native error code is available as `e.code` (for example `ALREADY_ACTIVE`, `NO_ACTIVITY`, `UNAVAILABLE`).
 
 ```dart
 try {
@@ -113,7 +128,7 @@ try {
 } on ArgumentError catch (e) {
   print("Invalid argument: $e");
 } on CunningDocumentScannerException catch (e) {
-  print("Scanner error: ${e.message}");
+  print("Scanner error [${e.code}]: ${e.message}");
 }
 ```
 
@@ -159,8 +174,6 @@ There are some features in Android that allow you to adjust the scanner that wil
 
 On iOS it is possible to configure which image format should be used to save of the document scans. Available options are PNG (default) or JPEG. In certain situations the JPEG format could drastically reduce the file size of the final scan. If you choose to use JPEG you can also specify a compression quality, where 0.0 is highest compression (lowest quality) and 1.0 (default) is the lowest compression (highest quality). Example usage is:
 
-Note: VisionKit does not expose a scanner mode or filter toggle on iOS. To disable filters or use only crop/rotation, a custom capture and cropping UI would be required.
-
 ```dart
    // Returns images in JPEG format with a compression quality of 50%. 
    final imagesPath = await CunningDocumentScanner.getPictures(
@@ -171,13 +184,30 @@ Note: VisionKit does not expose a scanner mode or filter toggle on iOS. To disab
    );
 ```
 
+#### Cropper Filters
+
+Images imported from the gallery go through the plugin's own cropper, which offers **Original**, **Color**, **Grayscale** and **B&W** filters. You can preselect one, and hide the selector entirely if you want a crop-only flow:
+
+```dart
+   final imagesPath = await CunningDocumentScanner.getPictures(
+      scannerSource: ScannerSource.gallery,
+      iosScannerOptions: IosScannerOptions(
+         defaultFilter: IosDocumentFilter.blackAndWhite,
+         showFilterBar: false, // every page keeps defaultFilter
+      ),
+   );
+```
+
+> [!NOTE]
+> These options only affect the plugin's cropper. The system document camera (`VNDocumentCameraViewController`) applies its own processing and VisionKit exposes no scanner mode or filter toggle for it.
+
 ## Installation
 
 Add `cunning_document_scanner` as a dependency in your `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  cunning_document_scanner: ^2.7.0
+  cunning_document_scanner: ^3.0.0
 ```
 
 Or run:

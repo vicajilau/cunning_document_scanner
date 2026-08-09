@@ -1,0 +1,6 @@
+# Every pull request into main requires a review from an owner listed here.
+# GitHub reads this file from the pull request's base branch, so changes to it
+# only take effect once merged.
+
+# Default owner for everything in the repository.
+* @vicajilau

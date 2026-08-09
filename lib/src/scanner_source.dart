@@ -10,7 +10,9 @@ enum ScannerSource {
   cameraAndGallery,
 }
 
+/// Serialization of [ScannerSource] for the method channel.
 extension ScannerSourceValue on ScannerSource {
+  /// The identifier sent over the method channel.
   String get methodChannelValue {
     switch (this) {
       case ScannerSource.camera:
