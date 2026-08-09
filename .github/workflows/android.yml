@@ -1,25 +1,46 @@
 name: Android CI
 
-# Dart paths are included because this job builds the example app, so a change to
-# the plugin's Dart API can break it even when no Kotlin file is touched.
 on:
   push:
-    branches: [ "master", "main" ]
-    paths: &android-paths
-      - 'android/**'
-      - 'example/android/**'
-      - 'lib/**'
-      - 'example/lib/**'
-      - 'pubspec.yaml'
-      - 'example/pubspec.yaml'
-      - '.github/workflows/android.yml'
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master", "main" ]
-    paths: *android-paths
+    branches: [ "main" ]
 
 jobs:
+  # Filtering happens here rather than on the trigger so the check always reports
+  # a status, which is what a required check on a protected branch needs.
+  changes:
+    name: Detect Android Changes
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        # The Dart paths are here because this workflow builds the example app,
+        # so a change to the plugin's Dart API can break it with no Kotlin touched.
+        run: |
+          relevant=$(./tool/has_changes.sh \
+            android \
+            example/android \
+            lib \
+            example/lib \
+            pubspec.yaml \
+            example/pubspec.yaml \
+            .github/workflows/android.yml \
+            tool/has_changes.sh)
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "Android build relevant: $relevant"
+
   android:
     name: Android Lint & Build
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
 
     steps:

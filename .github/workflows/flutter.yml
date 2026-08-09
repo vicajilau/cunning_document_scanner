@@ -1,27 +1,46 @@
 name: Flutter CI
 
-# Dart-only concerns. Native sources are covered by android.yml and ios.yml, and
-# version consistency by version.yml, so touching only Swift or Kotlin skips this.
 on:
   push:
-    branches: [ "master", "main" ]
-    paths: &dart-paths
-      - 'lib/**'
-      - 'test/**'
-      - 'example/lib/**'
-      - 'example/test/**'
-      - 'pubspec.yaml'
-      - 'example/pubspec.yaml'
-      - 'analysis_options.yaml'
-      - 'example/analysis_options.yaml'
-      - '.github/workflows/flutter.yml'
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master", "main" ]
-    paths: *dart-paths
+    branches: [ "main" ]
 
 jobs:
+  # Filtering happens here rather than on the trigger so the check always reports
+  # a status, which is what a required check on a protected branch needs.
+  changes:
+    name: Detect Dart Changes
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          relevant=$(./tool/has_changes.sh \
+            lib \
+            test \
+            example/lib \
+            example/test \
+            pubspec.yaml \
+            example/pubspec.yaml \
+            analysis_options.yaml \
+            example/analysis_options.yaml \
+            .github/workflows/flutter.yml \
+            tool/has_changes.sh)
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "Dart checks relevant: $relevant"
+
   flutter:
     name: Flutter Lint & Tests
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
 
     steps:
