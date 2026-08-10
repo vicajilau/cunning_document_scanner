@@ -33,6 +33,13 @@ public class CunningDocumentScannerPlugin: NSObject,
     /// The options passed from the Dart/Flutter side.
     var scannerOptions = CunningScannerOptions()
 
+    /// Set right before the Camera or Gallery action sheet entries open their own flow.
+    ///
+    /// UIKit calls `presentationControllerDidDismiss` for that dismissal too, not only for a
+    /// user tapping outside/swiping the sheet away, so this distinguishes the two: the delegate
+    /// clears it and ignores the callback when set, otherwise it treats the dismissal as a cancel.
+    private var isHandlingAlertAction = false
+
     /// Resolves the current visible or root UIViewController on the key window.
     var rootViewController: UIViewController? {
         let keyWindow = UIApplication.shared.connectedScenes
@@ -100,11 +107,13 @@ public class CunningDocumentScannerPlugin: NSObject,
             alertController.view.tintColor = .systemBlue
             
             let cameraAction = UIAlertAction(title: labelCamera, style: .default) { _ in
+                self.isHandlingAlertAction = true
                 self.openCamera(from: presentedVC)
             }
             cameraAction.setValue(UIColor.systemBlue, forKey: "titleTextColor")
 
             let galleryAction = UIAlertAction(title: labelGallery, style: .default) { _ in
+                self.isHandlingAlertAction = true
                 self.openGallery(from: presentedVC)
             }
             galleryAction.setValue(UIColor.systemBlue, forKey: "titleTextColor")
@@ -130,8 +139,11 @@ public class CunningDocumentScannerPlugin: NSObject,
             // On iPad the sheet is a popover, which the user can dismiss by tapping outside
             // without the cancel action ever running. That would strand the result callback
             // and, because a second call is rejected as ALREADY_ACTIVE, lock the plugin for
-            // the rest of the process. The delegate only fires for user-driven dismissals,
-            // so choosing Camera or Gallery does not trigger it.
+            // the rest of the process. UIKit also invokes this delegate for the dismissal that
+            // follows choosing Camera or Gallery, not only for a tap-outside/swipe dismissal, so
+            // `isHandlingAlertAction` distinguishes the two: it is set right before those actions
+            // present their own flow, and checked (then cleared) here so that legitimate case is
+            // ignored while a real user-driven dismissal still finishes with `nil`.
             alertController.presentationController?.delegate = self
 
             presentedVC.present(alertController, animated: true)
@@ -472,10 +484,14 @@ extension CunningDocumentScannerPlugin: UIAdaptivePresentationControllerDelegate
 
     /// Treats a swipe-away or tap-outside dismissal as a cancellation.
     ///
-    /// UIKit only calls this for user-driven dismissals, never for the programmatic
-    /// dismissal that follows tapping an action, so the camera and gallery choices are
-    /// unaffected. `finish` is a no-op once the result has already been delivered.
+    /// UIKit calls this both for that gesture-driven dismissal and for the one that follows
+    /// tapping Camera or Gallery, so `isHandlingAlertAction` is checked to ignore the latter.
+    /// `finish` is a no-op once the result has already been delivered.
     public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        if isHandlingAlertAction {
+            isHandlingAlertAction = false
+            return
+        }
         finish(nil)
     }
 }
