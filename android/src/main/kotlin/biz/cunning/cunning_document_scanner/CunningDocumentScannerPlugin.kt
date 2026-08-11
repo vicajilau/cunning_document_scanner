@@ -25,6 +25,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import java.io.File
+import java.io.IOException
 
 // / Main Android plugin class for cunning_document_scanner.
 // / Handles Flutter MethodChannel calls, Google Play Services (GMS) document scanner triggers,
@@ -263,6 +264,10 @@ class CunningDocumentScannerPlugin :
     }
 
     // / Handles the result of the GMS ML Kit document scanner.
+    // /
+    // / ML Kit writes its output under its own naming scheme, not the `DOCUMENT_SCAN_` prefix
+    // / `cleanCache` looks for, so those files would never be found and removed. Each file is
+    // / copied into this plugin's own storage before its path is returned to Flutter.
     private fun handleGmsScannerResult(
         resultCode: Int,
         data: Intent?,
@@ -292,23 +297,30 @@ class CunningDocumentScannerPlugin :
             return
         }
 
-        if (asPdf) {
-            val pdfUri =
-                scanningResult.pdf
-                    ?.uri
-                    ?.toString()
-                    ?.removePrefix("file://")
-            if (pdfUri != null) {
-                resolve(listOf(pdfUri))
+        val context = applicationContext
+        if (context == null) {
+            fail("NO_CONTEXT", "Plugin is not attached to the Flutter engine")
+            return
+        }
+
+        try {
+            if (asPdf) {
+                val pdfUri = scanningResult.pdf?.uri
+                if (pdfUri != null) {
+                    val pdfFile = FileUtil().copyPdfToScanStorage(context, pdfUri)
+                    resolve(listOf(pdfFile.absolutePath))
+                } else {
+                    fail("ERROR", "No PDF returned from ML Kit scanner")
+                }
             } else {
-                fail("ERROR", "No PDF returned from ML Kit scanner")
+                val successResponse =
+                    scanningResult.pages.orEmpty().mapIndexed { index, page ->
+                        FileUtil().copyPageToScanStorage(context, page.imageUri, index).absolutePath
+                    }
+                resolve(successResponse)
             }
-        } else {
-            val successResponse =
-                scanningResult.pages
-                    ?.map { it.imageUri.toString().removePrefix("file://") }
-                    .orEmpty()
-            resolve(successResponse)
+        } catch (e: IOException) {
+            fail("ERROR", "Failed to persist ML Kit scanner output: ${e.message}")
         }
     }
 
