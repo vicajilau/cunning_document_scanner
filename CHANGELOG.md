@@ -1,7 +1,9 @@
 ## 3.0.1
-
 ### Changed
 * **The Android `minSdk` is now 24, up from the 21 previously declared.** 21 was never a level a host application could reach: Flutter's Gradle plugin fails the build below API 23, and `play-services-mlkit-document-scanner` declares 23 in its own manifest. 24 is Flutter's own default `minSdkVersion`, so a project that has not overridden it needs no change. **Applications pinned to API 23 are the exception** — they built and ran before and will now fail the manifest merge, and must either raise their `minSdk` to 24 or stay on 3.0.0. The README documented the unreachable 21 and has been corrected everywhere it appeared.
+
+### Fixed
+* **`cleanCache()` removed nothing on most Android devices.** The GMS/ML Kit document scanner is the primary Android path, and it writes its page images and PDFs under its own naming scheme rather than this plugin's `DOCUMENT_SCAN_` prefix, so `cleanCache()` never matched or removed them even though the plugin had returned those exact paths to Flutter as its own output. Each file is now copied into the plugin's own prefixed storage before its path is returned.
 
 ## 3.0.0
 
