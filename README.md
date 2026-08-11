@@ -11,14 +11,14 @@
 
 ---
 
-Cunning Document Scanner is a Flutter-based document scanner application that enables you to capture images of paper documents and convert them into digital files effortlessly. This application is designed to run on Android and iOS devices with minimum API levels of 21 and 13, respectively.
+Cunning Document Scanner is a Flutter-based document scanner application that enables you to capture images of paper documents and convert them into digital files effortlessly. This application is designed to run on Android and iOS devices with minimum API levels of 24 and 13, respectively.
 
 ## Key Features
 
 - Fast and easy document scanning.
 - Conversion of document images into digital files, including direct PDF export.
 - Support for both Android and iOS platforms.
-- Minimum requirements: API 21 on Android, iOS 13 on iOS.
+- Minimum requirements: API 24 on Android, iOS 13 on iOS.
 - Limit the number of scanned pages on both platforms.
 - Import images from the gallery on both platforms, with manual cropping.
 - No third-party runtime dependencies.
@@ -39,14 +39,14 @@ Follow the steps below to set up your Flutter project on Android and iOS.
 
 #### Minimum Version Configuration
 Ensure you meet the minimum version requirements to run the application on Android devices.
-In `android/app/build.gradle`, verify that `minSdkVersion` (or `minSdk`) is at least **21**:
+In `android/app/build.gradle`, verify that `minSdkVersion` (or `minSdk`) is at least **24**:
 
 ```gradle
 android {
     ...
     defaultConfig {
         ...
-        minSdkVersion 21
+        minSdkVersion 24
         ...
     }
 }
