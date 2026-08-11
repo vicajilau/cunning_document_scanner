@@ -1,3 +1,8 @@
+## 3.0.1
+
+### Changed
+* **The Android `minSdk` is now 24, up from the 21 previously declared.** 21 was never a level a host application could reach: Flutter's Gradle plugin fails the build below API 23, and `play-services-mlkit-document-scanner` declares 23 in its own manifest. 24 is Flutter's own default `minSdkVersion`, so a project that has not overridden it needs no change. **Applications pinned to API 23 are the exception** — they built and ran before and will now fail the manifest merge, and must either raise their `minSdk` to 24 or stay on 3.0.0. The README documented the unreachable 21 and has been corrected everywhere it appeared.
+
 ## 3.0.0
 
 > [!IMPORTANT]
