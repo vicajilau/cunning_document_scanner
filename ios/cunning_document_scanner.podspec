@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'cunning_document_scanner'
-  s.version          = '3.0.1'
+  s.version          = '3.0.2'
   s.summary          = 'A document scanner plugin for flutter.'
   s.description      = <<-DESC
 A document scanner plugin for flutter. Scan and crop automatically on iOS and Android.

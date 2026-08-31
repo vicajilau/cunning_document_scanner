@@ -1,6 +1,7 @@
 package biz.cunning.cunning_document_scanner.fallback.utils
 
 import android.app.Activity
+import android.content.ContentResolver
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfDocument
@@ -55,14 +56,14 @@ class FileUtil {
         )
     }
 
-    // / Copies a scanned page image the GMS ML Kit scanner produced into this plugin's own
+    // / Moves a scanned page image the GMS ML Kit scanner produced into this plugin's own
     // / `DOCUMENT_SCAN_`-prefixed storage, so `cleanCache` can find and remove it.
     // / ML Kit owns and names the source file itself, outside this plugin's naming convention.
     // / - context: Used to read the source URI and resolve the destination directory.
     // / - sourceUri: The page image URI reported by the scanner result.
     // / - pageNumber: The document page number used to prefix the filename.
     @Throws(IOException::class)
-    fun copyPageToScanStorage(
+    fun movePageToScanStorage(
         context: Context,
         sourceUri: Uri,
         pageNumber: Int,
@@ -80,16 +81,16 @@ class FileUtil {
                 ".jpg",
                 storageDir,
             )
-        copyUriToFile(context, sourceUri, destFile)
+        moveUriToFile(context, sourceUri, destFile)
         return destFile
     }
 
-    // / Copies a scanned PDF the GMS ML Kit scanner produced into this plugin's own
+    // / Moves a scanned PDF the GMS ML Kit scanner produced into this plugin's own
     // / `DOCUMENT_SCAN_`-prefixed storage, so `cleanCache` can find and remove it.
     // / - context: Used to read the source URI and resolve the destination directory.
     // / - sourceUri: The PDF URI reported by the scanner result.
     @Throws(IOException::class)
-    fun copyPdfToScanStorage(
+    fun movePdfToScanStorage(
         context: Context,
         sourceUri: Uri,
     ): File {
@@ -106,8 +107,72 @@ class FileUtil {
                 ".pdf",
                 storageDir,
             )
-        copyUriToFile(context, sourceUri, destFile)
+        moveUriToFile(context, sourceUri, destFile)
         return destFile
+    }
+
+    // / Moves the content behind a `content://` or `file://` URI into a destination file,
+    // / leaving nothing behind at the source.
+    // /
+    // / Copying alone would strand the scanner's own file: its URI never crosses into Dart,
+    // / and `cleanCache` matches only this plugin's `DOCUMENT_SCAN_` prefix, so no caller
+    // / could ever reach it. Two copies of a scanned document would sit on disk until the
+    // / system reclaimed the cache, which for a confidential scan is exactly the wrong
+    // / default.
+    // /
+    // / A `file://` source is renamed when possible. That avoids writing the document a
+    // / second time and leaves no window in which both copies exist. A rename across
+    // / storage volumes fails, and a `content://` source cannot be renamed at all, so both
+    // / fall back to a stream-and-remove.
+    @Throws(IOException::class)
+    private fun moveUriToFile(
+        context: Context,
+        sourceUri: Uri,
+        destFile: File,
+    ) {
+        val sourceFile = asLocalFile(sourceUri)
+        if (sourceFile != null && sourceFile.renameTo(destFile)) {
+            return
+        }
+
+        copyUriToFile(context, sourceUri, destFile)
+        deleteSource(context, sourceUri, sourceFile)
+    }
+
+    // / Resolves a URI to the file it points at, or null when it does not name one directly.
+    // / A missing scheme is treated as a bare filesystem path, which is how `Uri.parse`
+    // / represents one.
+    private fun asLocalFile(sourceUri: Uri): File? {
+        val scheme = sourceUri.scheme
+        if (scheme != null && scheme != ContentResolver.SCHEME_FILE) {
+            return null
+        }
+        return sourceUri.path?.let { File(it) }
+    }
+
+    // / Removes the scanner's original after its content has been copied out.
+    // /
+    // / Best-effort by design: the scan itself was read correctly and is already safe in
+    // / this plugin's storage, so a source that refuses to be deleted must not turn a
+    // / successful scan into a failure. A `content://` provider owned by another process
+    // / may reject the delete outright, and the read grant this plugin holds does not
+    // / imply a write one.
+    private fun deleteSource(
+        context: Context,
+        sourceUri: Uri,
+        sourceFile: File?,
+    ) {
+        try {
+            if (sourceFile != null) {
+                sourceFile.delete()
+            } else {
+                context.contentResolver.delete(sourceUri, null, null)
+            }
+        } catch (_: RuntimeException) {
+            // SecurityException, UnsupportedOperationException and IllegalArgumentException
+            // all mean the same thing here: this process is not allowed to remove the
+            // source, and there is nothing further to try.
+        }
     }
 
     // / Streams the content behind a `content://` or `file://` URI into a destination file.
