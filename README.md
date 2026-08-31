@@ -111,9 +111,15 @@ The easiest way to get a list of images is:
 
 ### File Lifetime
 
-The returned paths point to files in a **plugin-owned cache directory** (`Library/Caches/cunning_document_scanner/` on iOS, the app cache and pictures directories on Android). They are not backed up and the system may reclaim them. Copy anything you need to keep to your own storage.
+The returned paths point to files the plugin owns, and the two platforms treat them differently.
 
-Call `cleanCache()` to remove them yourself. It only deletes files this plugin wrote — your application's own images and PDFs are never touched:
+On iOS they live in `Library/Caches/cunning_document_scanner/`, a real cache directory: it is excluded from backups and the system may reclaim it at any time.
+
+On Android they live in your application's private external pictures directory. Other applications cannot read it, but it is **not** a cache. Android will not clear it for you, so the files stay until something removes them, and its contents are included in Auto Backup unless your application opts out.
+
+Copy anything you need to keep to your own storage.
+
+Call `cleanCache()` to remove the rest. It only deletes files this plugin wrote — your application's own images and PDFs are never touched:
 
 ```dart
    await CunningDocumentScanner.cleanCache();
