@@ -267,7 +267,8 @@ class CunningDocumentScannerPlugin :
     // /
     // / ML Kit writes its output under its own naming scheme, not the `DOCUMENT_SCAN_` prefix
     // / `cleanCache` looks for, so those files would never be found and removed. Each file is
-    // / copied into this plugin's own storage before its path is returned to Flutter.
+    // / moved into this plugin's own storage before its path is returned to Flutter, which
+    // / leaves no second copy of the document behind for an application to worry about.
     private fun handleGmsScannerResult(
         resultCode: Int,
         data: Intent?,
@@ -307,7 +308,7 @@ class CunningDocumentScannerPlugin :
             if (asPdf) {
                 val pdfUri = scanningResult.pdf?.uri
                 if (pdfUri != null) {
-                    val pdfFile = FileUtil().copyPdfToScanStorage(context, pdfUri)
+                    val pdfFile = FileUtil().movePdfToScanStorage(context, pdfUri)
                     resolve(listOf(pdfFile.absolutePath))
                 } else {
                     fail("ERROR", "No PDF returned from ML Kit scanner")
@@ -315,7 +316,7 @@ class CunningDocumentScannerPlugin :
             } else {
                 val successResponse =
                     scanningResult.pages.orEmpty().mapIndexed { index, page ->
-                        FileUtil().copyPageToScanStorage(context, page.imageUri, index).absolutePath
+                        FileUtil().movePageToScanStorage(context, page.imageUri, index).absolutePath
                     }
                 resolve(successResponse)
             }
