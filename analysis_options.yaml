@@ -10,6 +10,14 @@ analyzer:
   errors:
     # Everything exported from lib/ is public API of a published package.
     public_member_api_docs: warning
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:
