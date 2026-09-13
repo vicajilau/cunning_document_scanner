@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="biz.cunning.cunning_document_scanner">
-    <application android:theme="@style/Theme.AppCompat.NoActionBar">
+    <application
+        android:theme="@style/Theme.AppCompat.NoActionBar"
+        android:dataExtractionRules="@xml/cunning_backup_rules"
+        android:fullBackupContent="@xml/cunning_backup_rules_legacy">
         <activity
             android:name=".fallback.DocumentScannerActivity"
             android:configChanges="orientation|screenSize"

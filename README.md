@@ -115,7 +115,9 @@ The returned paths point to files the plugin owns, and the two platforms treat t
 
 On iOS they live in `Library/Caches/cunning_document_scanner/`, a real cache directory: it is excluded from backups and the system may reclaim it at any time.
 
-On Android they live in your application's private external pictures directory. Other applications cannot read it, but it is **not** a cache. Android will not clear it for you, so the files stay until something removes them, and its contents are included in Auto Backup unless your application opts out.
+On Android they live in your application's private external pictures directory. Other applications cannot read it, but it is **not** a cache. Android will not clear it for you, so the files stay until something removes them. The plugin excludes that directory from Auto Backup on your behalf, so scans are not uploaded to the user's Google Drive backup.
+
+If your own application already declares `android:dataExtractionRules` or `android:fullBackupContent` in its manifest, the Android manifest merger will fail the build with an `Attribute ... also present at [:cunning_document_scanner]` error, because both the plugin and your application are setting the same manifest attribute. Add `tools:replace="android:dataExtractionRules,android:fullBackupContent"` to the `<application>` tag in your own `AndroidManifest.xml` to keep your rules and resolve the conflict — your declaration wins, so you decide whether to keep excluding the scans directory yourself.
 
 Copy anything you need to keep to your own storage.
 

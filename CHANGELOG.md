@@ -1,3 +1,8 @@
+## 3.0.3
+
+### Fixed
+* **Android scans were included in Auto Backup and could leave the device.** `getExternalFilesDir(DIRECTORY_PICTURES)`, where every Android scan is written, is included in Android Auto Backup by default, so a host application without its own backup rules had its users' scanned documents uploaded to their Google Drive backup with nothing in the plugin or its documentation saying so. Reported in [#171](https://github.com/vicajilau/cunning_document_scanner/issues/171). The plugin now declares `android:dataExtractionRules` and `android:fullBackupContent` in its own manifest to exclude that directory, which applies to a host application automatically through the manifest merger. An application that already declares its own backup rules will see the manifest merger fail; the README explains the `tools:replace` needed to resolve it.
+
 ## 3.0.2
 
 ### Fixed
