@@ -134,17 +134,25 @@ public class CunningDocumentScannerPlugin: NSObject,
                 let midY = presentedVC.view.bounds.midY
                 popoverController.sourceRect = CGRect(x: midX, y: midY, width: 0, height: 0)
                 popoverController.permittedArrowDirections = []
+
+                // On iPad the sheet is a popover, which the user can dismiss by tapping outside
+                // without the cancel action ever running. That would strand the result callback
+                // and, because a second call is rejected as ALREADY_ACTIVE, lock the plugin for
+                // the rest of the process. UIKit also invokes this delegate for the dismissal that
+                // follows choosing Camera or Gallery, not only for a tap-outside/swipe dismissal, so
+                // `isHandlingAlertAction` distinguishes the two: it is set right before those actions
+                // present their own flow, and checked (then cleared) here so that legitimate case is
+                // ignored while a real user-driven dismissal still finishes with `nil`.
+                //
+                // The delegate is set only here, on the popover. On iPhone the sheet uses UIKit's
+                // alert presentation controller, which raises NSInternalInconsistencyException if
+                // its delegate is replaced, and it cannot be dismissed without choosing an action.
+                popoverController.delegate = self
             }
 
-            // On iPad the sheet is a popover, which the user can dismiss by tapping outside
-            // without the cancel action ever running. That would strand the result callback
-            // and, because a second call is rejected as ALREADY_ACTIVE, lock the plugin for
-            // the rest of the process. UIKit also invokes this delegate for the dismissal that
-            // follows choosing Camera or Gallery, not only for a tap-outside/swipe dismissal, so
-            // `isHandlingAlertAction` distinguishes the two: it is set right before those actions
-            // present their own flow, and checked (then cleared) here so that legitimate case is
-            // ignored while a real user-driven dismissal still finishes with `nil`.
-            alertController.presentationController?.delegate = self
+            // Only the popover delegate above ever clears this flag, so a value left over from an
+            // earlier sheet must not leak into this one.
+            isHandlingAlertAction = false
 
             presentedVC.present(alertController, animated: true)
         }
@@ -478,11 +486,11 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
     }
 }
 
-// MARK: - UIAdaptivePresentationControllerDelegate
+// MARK: - UIPopoverPresentationControllerDelegate
 
-extension CunningDocumentScannerPlugin: UIAdaptivePresentationControllerDelegate {
+extension CunningDocumentScannerPlugin: UIPopoverPresentationControllerDelegate {
 
-    /// Treats a swipe-away or tap-outside dismissal as a cancellation.
+    /// Treats a tap-outside dismissal of the iPad popover as a cancellation.
     ///
     /// UIKit calls this both for that gesture-driven dismissal and for the one that follows
     /// tapping Camera or Gallery, so `isHandlingAlertAction` is checked to ignore the latter.
