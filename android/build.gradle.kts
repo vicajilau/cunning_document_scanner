@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import com.android.build.api.dsl.LibraryExtension
 
 group = "biz.cunning.cunning_document_scanner"
-version = "3.0.3"
+version = "3.0.4"
 
 plugins {
     id("com.android.library")
