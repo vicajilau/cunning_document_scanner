@@ -85,19 +85,31 @@ Add the [NSCameraUsageDescription](https://developer.apple.com/documentation/bun
 > The plugin requests the camera permission itself, through `AVCaptureDevice`, and carries **no permission dependency** — there is nothing to add to your `pubspec.yaml` and no preprocessor macro to configure in your `Podfile`. The permission is only requested when the flow actually opens the camera: `ScannerSource.gallery` uses the system photo picker and prompts for nothing.
 
 #### Localization Configuration
-To ensure native iOS UI components (like the document camera, photo library picker, and our source selection menu) are displayed in the user's preferred language (e.g., Spanish), you can enable mixed localizations in your app's `ios/Runner/Info.plist`:
+The scanner on iOS combines two kinds of screens, and they choose their language differently:
+
+- **Apple's document camera** (`VNDocumentCameraViewController`: the camera, preview, crop, filter and edit screens) is shown in the language **your app** resolves to, not the device language. If your app only declares English, these screens stay in English on a device set to any other language.
+- **The plugin's own screens** (the Camera/Gallery source sheet and the gallery cropper) use the plugin's built-in translations (31 languages, including Catalan, Basque and Galician) and follow the **device** language.
+
+So unless your app declares the languages it supports, a user can see Apple's screens in English and the plugin's in their own language. Declare them in `ios/Runner/Info.plist`:
+
+```xml
+<key>CFBundleLocalizations</key>
+<array>
+  <string>en</string>
+  <string>es</string>
+  <!-- every language your app supports -->
+</array>
+```
+
+Alternatively, enabling mixed localizations lets Apple's screens follow the device language for every language, including ones your app does not declare:
 
 ```xml
 <key>CFBundleAllowMixedLocalizations</key>
 <true/>
 ```
 
-Alternatively, you can add the supported languages to the **Localizations** list in Xcode:
-1. Open `ios/Runner.xcworkspace` in Xcode.
-2. Select the `Runner` project in the left project navigator.
-3. In the **Info** tab, under the **Localizations** section, click the `+` button and add the languages your app supports.
-
-If one of these configurations is applied, iOS will automatically load the plugin's built-in translations (supporting 31 languages, including Catalan, Basque and Galician) and translate the system document camera UI to the device's system language. Otherwise, iOS will default all system and plugin UI strings to English.
+> [!NOTE]
+> iOS caches the language it resolves for an app. After changing either key, uninstall the app from the device before running it again, or the change may not show.
 
 ## How to use ?
 
