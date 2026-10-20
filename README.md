@@ -85,12 +85,9 @@ Add the [NSCameraUsageDescription](https://developer.apple.com/documentation/bun
 > The plugin requests the camera permission itself, through `AVCaptureDevice`, and carries **no permission dependency** — there is nothing to add to your `pubspec.yaml` and no preprocessor macro to configure in your `Podfile`. The permission is only requested when the flow actually opens the camera: `ScannerSource.gallery` uses the system photo picker and prompts for nothing.
 
 #### Localization Configuration
-The scanner on iOS combines two kinds of screens, and they choose their language differently:
+The scanner on iOS combines Apple's document camera (`VNDocumentCameraViewController`: the camera, preview, crop, filter and edit screens) with the plugin's own screens (the Camera/Gallery source sheet and the gallery cropper, translated into 31 languages, including Catalan, Basque and Galician). Both are shown in the language **your app** resolves to, not the device language, so a single setting in your `Info.plist` controls every screen. If your app only declares English, the whole scanner stays in English on a device set to any other language.
 
-- **Apple's document camera** (`VNDocumentCameraViewController`: the camera, preview, crop, filter and edit screens) is shown in the language **your app** resolves to, not the device language. If your app only declares English, these screens stay in English on a device set to any other language.
-- **The plugin's own screens** (the Camera/Gallery source sheet and the gallery cropper) use the plugin's built-in translations (31 languages, including Catalan, Basque and Galician) and follow the **device** language.
-
-So unless your app declares the languages it supports, a user can see Apple's screens in English and the plugin's in their own language. Declare them in `ios/Runner/Info.plist`:
+Declare the languages your app supports in `ios/Runner/Info.plist`:
 
 ```xml
 <key>CFBundleLocalizations</key>
@@ -101,7 +98,7 @@ So unless your app declares the languages it supports, a user can see Apple's sc
 </array>
 ```
 
-Alternatively, enabling mixed localizations lets Apple's screens follow the device language for every language, including ones your app does not declare:
+Alternatively, enabling mixed localizations makes the whole scanner follow the device language instead, including languages your app does not declare:
 
 ```xml
 <key>CFBundleAllowMixedLocalizations</key>
