@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:cunning_document_scanner_example/example_strings.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,16 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(strings.appTitle),
+        actions: [
+          // iOS can only change the language of Apple's scanner screens by restarting the app in
+          // the language chosen on its Settings page, so that is where this button leads.
+          if (Platform.isIOS)
+            IconButton(
+              icon: const Icon(Icons.language),
+              tooltip: strings.changeLanguage,
+              onPressed: () => AppSettings.openAppSettings(),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
           child: Column(

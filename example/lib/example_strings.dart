@@ -43,6 +43,7 @@ class ExampleStrings {
   String get showFilterBarSubtitle => _strings['showFilterBarSubtitle']!;
   String get addPictures => _strings['addPictures']!;
   String get tapToOpenPdf => _strings['tapToOpenPdf']!;
+  String get changeLanguage => _strings['changeLanguage']!;
   String invalidParameter(Object? message) =>
       _strings['invalidParameter']!.replaceAll('{message}', '$message');
   String scannerError(Object? message) =>
@@ -77,6 +78,7 @@ class ExampleStrings {
           'When off, every page keeps the default filter above',
       'addPictures': 'Add Pictures',
       'tapToOpenPdf': 'Tap to open PDF',
+      'changeLanguage': 'Change language',
       'invalidParameter': 'Invalid parameter: {message}',
       'scannerError': 'Scanner Error: {message}',
       'error': 'Error: {message}',
@@ -107,6 +109,7 @@ class ExampleStrings {
           'Si está desactivada, todas las páginas usan el filtro por defecto',
       'addPictures': 'Añadir imágenes',
       'tapToOpenPdf': 'Toca para abrir el PDF',
+      'changeLanguage': 'Cambiar idioma',
       'invalidParameter': 'Parámetro no válido: {message}',
       'scannerError': 'Error del escáner: {message}',
       'error': 'Error: {message}',
@@ -137,6 +140,7 @@ class ExampleStrings {
           'Если выключено, все страницы используют фильтр по умолчанию',
       'addPictures': 'Добавить изображения',
       'tapToOpenPdf': 'Нажмите, чтобы открыть PDF',
+      'changeLanguage': 'Сменить язык',
       'invalidParameter': 'Недопустимый параметр: {message}',
       'scannerError': 'Ошибка сканера: {message}',
       'error': 'Ошибка: {message}',
