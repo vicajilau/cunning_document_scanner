@@ -108,6 +108,11 @@ Alternatively, enabling mixed localizations makes the whole scanner follow the d
 > [!NOTE]
 > iOS caches the language it resolves for an app. After changing either key, uninstall the app from the device before running it again, or the change may not show.
 
+##### Multilingual apps
+Once `CFBundleLocalizations` lists more than one language, iOS adds a **Language** option to your app's page in the Settings app. Choosing a language there restarts your app in it, and Flutter, Apple's scanner screens and the plugin all switch together, provided your `MaterialApp` declares the same languages in `supportedLocales` and does not set `locale`. The [example app](example/lib/main.dart) is set up this way.
+
+An in-app language picker that only changes the `locale` of your `MaterialApp` changes Flutter's text alone: iOS offers no way to switch the language of Apple's scanner screens at runtime, so they keep the language iOS resolved for the app. To let users change the language from inside your app, send them to its Settings page instead, for example with [`app_settings`](https://pub.dev/packages/app_settings) or by opening `UIApplication.openSettingsURLString`.
+
 ## How to use ?
 
 The easiest way to get a list of images is:
