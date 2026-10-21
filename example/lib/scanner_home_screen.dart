@@ -43,14 +43,18 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
       appBar: AppBar(
         title: Text(strings.appTitle),
         actions: [
-          // iOS can only change the language of Apple's scanner screens by restarting the app in
-          // the language chosen on its Settings page, so that is where this button leads.
-          if (Platform.isIOS)
-            IconButton(
-              icon: const Icon(Icons.language),
-              tooltip: strings.changeLanguage,
-              onPressed: () => AppSettings.openAppSettings(),
+          // The scanner screens follow the language the system resolves for the app, so this
+          // button leads to the system page where it is chosen: the app's Settings page on iOS,
+          // and its language page on Android 13+.
+          IconButton(
+            icon: const Icon(Icons.language),
+            tooltip: strings.changeLanguage,
+            onPressed: () => AppSettings.openAppSettings(
+              type: Platform.isAndroid
+                  ? AppSettingsType.appLocale
+                  : AppSettingsType.settings,
             ),
+          ),
         ],
       ),
       body: SingleChildScrollView(

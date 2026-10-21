@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The languages offered on the app's language page in Android 13+ system settings. Keep this in
+     sync with supportedLanguageCodes in lib/example_strings.dart. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="es" />
+    <locale android:name="ru" />
+</locale-config>

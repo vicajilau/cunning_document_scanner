@@ -2,8 +2,9 @@ import 'package:flutter/widgets.dart';
 
 /// The languages the example app is translated into.
 ///
-/// Keep this in sync with `CFBundleLocalizations` in `ios/Runner/Info.plist`, so that iOS offers
-/// the same languages in the app's Settings page and Apple's scanner screens resolve to them too.
+/// Keep this in sync with `CFBundleLocalizations` in `ios/Runner/Info.plist` and with
+/// `android/app/src/main/res/xml/locales_config.xml`, so that the system offers the same languages
+/// on the app's language page and the scanner screens resolve to them too.
 const supportedLanguageCodes = ['en', 'es', 'ru'];
 
 /// The example app's UI strings, resolved from the locale Flutter picked for the app.
