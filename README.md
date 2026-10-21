@@ -59,6 +59,19 @@ Ensure camera permission is declared in your app's `android/app/src/main/Android
 <uses-permission android:name="android.permission.CAMERA"/>
 ```
 
+#### Localization
+The scanner on Android combines screens that choose their language in two different ways:
+
+- **Google's ML Kit scanner** (the camera, gallery import, review and filter screens of the `camera` and `cameraAndGallery` sources) and the **system photo picker** (`ScannerSource.gallery`) run outside your app and always follow the **system** language.
+- **The plugin's cropper** (shown after picking images with `ScannerSource.gallery`, and whenever ML Kit is unavailable) uses the plugin's built-in translations (31 languages) and follows **your app's** language, as Flutter does.
+
+By default your app follows the system language, so every screen matches and nothing needs to be configured.
+
+**Per-app language (Android 13+).** When your app declares a [`localeConfig`](https://developer.android.com/guide/topics/resources/app-languages) and the user chooses a language for it in the system settings, Flutter and the plugin's cropper switch to that language, but ML Kit and the photo picker stay in the system language. ML Kit offers no way to set its language, so this mix cannot be avoided from the plugin. An in-app language picker that only changes the `locale` of your `MaterialApp` changes Flutter's text alone.
+
+> [!NOTE]
+> If your app limits the languages it packages with `localeFilters` (formerly `resourceConfigurations`), the plugin's translations for every other language are removed from the build too, and the cropper falls back to English for them. The same fallback applies to a language the plugin does not ship, which you can translate yourself as described in [Android: text, colors and dimensions](#android-text-colors-and-dimensions).
+
 ### **iOS**
 
 #### Minimum Version Configuration
@@ -97,6 +110,10 @@ Declare the languages your app supports in `ios/Runner/Info.plist`:
   <!-- every language your app supports -->
 </array>
 ```
+
+An app available in a single language declares only that one. An app only in Spanish that declares just `es` shows the whole scanner in Spanish, whatever the device language.
+
+The plugin ships 31 languages. If your app declares a language outside that list, Apple's screens can still be translated while the plugin's fall back to English, so provide the plugin's strings for that language yourself as described in [iOS: text](#ios-text).
 
 Alternatively, enabling mixed localizations makes the whole scanner follow the device language instead, including languages your app does not declare:
 
@@ -358,7 +375,7 @@ Both platforms ship the same 31 languages and are expected to stay in step:
 2. Add the matching `cunning_`-prefixed string to `android/src/main/res/values/strings.xml` and to **all** the `values-*/strings.xml` files.
 3. Use positional format specifiers (`%1$d`, `%2$d`) so both platforms can share the same wording, and so translators can reorder them.
 
-Android resolves the language from the device automatically. iOS requires the host application to opt in, as described in the [Localization Configuration](#localization-configuration) section above.
+On both platforms the plugin's strings follow the language the host application resolves to, as described in the [Android](#localization) and [iOS](#localization-configuration) localization sections above.
 
 Hebrew and Indonesian use the legacy Android qualifiers `values-iw` and `values-in`, and Chinese uses BCP47 script tags (`values-b+zh+Hans`, `values-b+zh+Hant`) so the variant is chosen by script rather than by country.
 
