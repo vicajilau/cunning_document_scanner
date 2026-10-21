@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+import 'package:cunning_document_scanner_example/example_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
@@ -36,16 +38,27 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ExampleStrings.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plugin example app'),
+        title: Text(strings.appTitle),
+        actions: [
+          // iOS can only change the language of Apple's scanner screens by restarting the app in
+          // the language chosen on its Settings page, so that is where this button leads.
+          if (Platform.isIOS)
+            IconButton(
+              icon: const Icon(Icons.language),
+              tooltip: strings.changeLanguage,
+              onPressed: () => AppSettings.openAppSettings(),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
           child: Column(
         children: [
           SwitchListTile(
-            title: const Text("Scan as PDF"),
-            subtitle: const Text("Compile pages into a single PDF document"),
+            title: Text(strings.scanAsPdf),
+            subtitle: Text(strings.scanAsPdfSubtitle),
             value: _asPdf,
             onChanged: (value) {
               setState(() {
@@ -60,19 +73,19 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
               initialValue: _noOfPages.toString(),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: "Max Number of Pages (noOfPages)",
-                hintText: "Minimum 1",
+              decoration: InputDecoration(
+                labelText: strings.maxPages,
+                hintText: strings.maxPagesHint,
                 border: OutlineInputBorder(),
               ),
               autovalidateMode: AutovalidateMode.onUserInteraction,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return "Please enter a valid number (min 1)";
+                  return strings.invalidNumber;
                 }
                 final parsed = int.tryParse(value);
                 if (parsed == null || parsed < 1) {
-                  return "Number of pages must be at least 1";
+                  return strings.pagesMin;
                 }
                 return null;
               },
@@ -87,8 +100,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
             ),
           ),
           SwitchListTile(
-            title: const Text("Use ScannerSource Enum (New API)"),
-            subtitle: const Text("Use new scannerSource configuration"),
+            title: Text(strings.useScannerSource),
+            subtitle: Text(strings.useScannerSourceSubtitle),
             value: _useScannerSource,
             onChanged: (value) {
               setState(() {
@@ -101,8 +114,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: DropdownButtonFormField<ScannerSource>(
-                decoration: const InputDecoration(
-                  labelText: "Scanner Source",
+                decoration: InputDecoration(
+                  labelText: strings.scannerSource,
                   border: OutlineInputBorder(),
                 ),
                 initialValue: _scannerSource,
@@ -110,13 +123,13 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
                   String label = "";
                   switch (source) {
                     case ScannerSource.camera:
-                      label = "Camera Only";
+                      label = strings.cameraOnly;
                       break;
                     case ScannerSource.gallery:
-                      label = "Gallery Only";
+                      label = strings.galleryOnly;
                       break;
                     case ScannerSource.cameraAndGallery:
-                      label = "Camera & Gallery Menu";
+                      label = strings.cameraAndGallery;
                       break;
                   }
                   return DropdownMenuItem<ScannerSource>(
@@ -135,8 +148,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
             )
           else
             SwitchListTile(
-              title: const Text("Allow Gallery Import (Legacy API)"),
-              subtitle: const Text("Import documents from photo library"),
+              title: Text(strings.allowGalleryImport),
+              subtitle: Text(strings.allowGalleryImportSubtitle),
               value: _isGalleryImportAllowed,
               onChanged: (value) {
                 setState(() {
@@ -148,8 +161,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: DropdownButtonFormField<AndroidScannerMode>(
-              decoration: const InputDecoration(
-                labelText: "Android Scanner Mode (Android Only)",
+              decoration: InputDecoration(
+                labelText: strings.androidMode,
                 border: OutlineInputBorder(),
               ),
               initialValue: _androidScannerMode,
@@ -157,13 +170,13 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
                 String label = "";
                 switch (mode) {
                   case AndroidScannerMode.full:
-                    label = "Full (ML Enhancements & Filters)";
+                    label = strings.androidFull;
                     break;
                   case AndroidScannerMode.base:
-                    label = "Base (No Filters)";
+                    label = strings.androidBase;
                     break;
                   case AndroidScannerMode.baseWithFilter:
-                    label = "Base with Filter";
+                    label = strings.androidBaseWithFilter;
                     break;
                 }
                 return DropdownMenuItem<AndroidScannerMode>(
@@ -184,8 +197,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: DropdownButtonFormField<IosDocumentFilter>(
-              decoration: const InputDecoration(
-                labelText: "Default Cropper Filter (iOS Only)",
+              decoration: InputDecoration(
+                labelText: strings.iosFilter,
                 border: OutlineInputBorder(),
               ),
               initialValue: _iosDefaultFilter,
@@ -205,9 +218,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
             ),
           ),
           SwitchListTile(
-            title: const Text("Show filter bar (iOS Only)"),
-            subtitle: const Text(
-                "When off, every page keeps the default filter above"),
+            title: Text(strings.showFilterBar),
+            subtitle: Text(strings.showFilterBarSubtitle),
             value: _iosShowFilterBar,
             onChanged: (value) {
               setState(() {
@@ -217,7 +229,7 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
           ),
           const SizedBox(height: 10),
           ElevatedButton(
-              onPressed: onPressed, child: const Text("Add Pictures")),
+              onPressed: onPressed, child: Text(strings.addPictures)),
           const SizedBox(height: 20),
           if (_isPdfResult)
             for (var picture in _pictures)
@@ -241,15 +253,15 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 12),
-                        const Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.open_in_new,
+                            const Icon(Icons.open_in_new,
                                 size: 16, color: Colors.blue),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              "Tap to open PDF",
-                              style: TextStyle(
+                              strings.tapToOpenPdf,
+                              style: const TextStyle(
                                 color: Colors.blue,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -294,7 +306,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Invalid parameter: ${exception.message}"),
+          content: Text(
+              ExampleStrings.of(context).invalidParameter(exception.message)),
           backgroundColor: Colors.red,
         ),
       );
@@ -302,7 +315,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Scanner Error: ${exception.message}"),
+          content:
+              Text(ExampleStrings.of(context).scannerError(exception.message)),
           backgroundColor: Colors.red,
         ),
       );
@@ -310,7 +324,7 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error: $exception"),
+          content: Text(ExampleStrings.of(context).error(exception)),
           backgroundColor: Colors.red,
         ),
       );

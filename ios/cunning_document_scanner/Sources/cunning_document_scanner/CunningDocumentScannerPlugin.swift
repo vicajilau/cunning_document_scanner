@@ -284,16 +284,38 @@ public class CunningDocumentScannerPlugin: NSObject,
         #endif
 
         var resolvedBundle = pluginBundle
-        for language in Locale.preferredLanguages {
-            let baseLanguage = language.components(separatedBy: "-").first ?? language
-            if let path = pluginBundle.path(forResource: baseLanguage, ofType: "lproj"),
-               let langBundle = Bundle(path: path) {
-                resolvedBundle = langBundle
-                break
+        search: for language in pluginLanguagePreferences {
+            // Tries the full identifier first and then drops trailing components, so that
+            // `zh-Hans-ES` resolves to `zh-Hans.lproj` and `pt-BR` to `pt.lproj`.
+            var components = language.components(separatedBy: "-")
+            while !components.isEmpty {
+                if let path = pluginBundle.path(forResource: components.joined(separator: "-"), ofType: "lproj"),
+                   let langBundle = Bundle(path: path) {
+                    resolvedBundle = langBundle
+                    break search
+                }
+                components.removeLast()
             }
         }
 
         return resolvedBundle.localizedString(forKey: key, value: defaultValue, table: nil)
+    }
+
+    /// The languages the plugin's own strings are resolved against, most preferred first.
+    ///
+    /// Apple's document camera is shown in the language the host application resolves to, so
+    /// the plugin follows the same rule to keep every screen of a scan in one language, set from
+    /// a single place in the application's `Info.plist`. With `CFBundleAllowMixedLocalizations`
+    /// the system screens follow the device languages, and so does the plugin. Otherwise both use
+    /// the application's own resolved localization, which `CFBundleLocalizations` controls.
+    private var pluginLanguagePreferences: [String] {
+        let allowsMixedLocalizations = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleAllowMixedLocalizations"
+        ) as? Bool ?? false
+        if allowsMixedLocalizations {
+            return Locale.preferredLanguages
+        }
+        return Bundle.main.preferredLocalizations.filter { $0 != "Base" }
     }
 
     /// Presents the custom cropper for the given images, configured from the current options.

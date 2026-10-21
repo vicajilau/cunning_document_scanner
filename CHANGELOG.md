@@ -1,6 +1,10 @@
 ## 3.0.4
 
+### Changed
+* **The plugin's iOS strings now follow the app language instead of the device language**, matching Apple's document camera, so one `Info.plist` setting controls every screen ([#175](https://github.com/vicajilau/cunning_document_scanner/issues/175)). Apps that declare no language will now see these strings in their development language: add your supported languages to `CFBundleLocalizations` as the README describes.
+
 ### Fixed
+* **Chinese never resolved for the plugin's iOS strings.** Each preferred language was reduced to its base code, so `zh-Hans` and `zh-Hant` became `zh`, which matches no bundled translation, and Chinese users got the next language in their list or the English default. The full identifier is now tried first, dropping trailing components until one matches.
 * **`ScannerSource.cameraAndGallery` crashed the app on iPhone.** The Camera/Gallery action sheet assigned the plugin as the delegate of its presentation controller on every device, but on iPhone UIKit presents an action sheet through its alert presentation controller and raises `NSInternalInconsistencyException` when that delegate is replaced, so the application terminated as soon as the sheet appeared. Reported in [#178](https://github.com/vicajilau/cunning_document_scanner/issues/178). The delegate is now set only on the iPad popover, where it is needed to treat a tap outside the sheet as a cancellation. An iPhone action sheet cannot be dismissed without choosing one of its actions, so nothing is lost there.
 
 ## 3.0.3
