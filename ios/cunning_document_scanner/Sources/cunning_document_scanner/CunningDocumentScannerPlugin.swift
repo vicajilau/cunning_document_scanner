@@ -279,13 +279,22 @@ public class CunningDocumentScannerPlugin: NSObject,
     }
 
     /// The bundle holding the plugin's translations.
-    static var resourceBundle: Bundle {
+    ///
+    /// Swift Package Manager generates `Bundle.module`. CocoaPods builds the
+    /// `cunning_document_scanner_resources` bundle declared in the podspec, which sits inside
+    /// the plugin framework, or inside the app itself when the pod is linked statically.
+    static let resourceBundle: Bundle = {
         #if SWIFT_PACKAGE
         return Bundle.module
         #else
-        return Bundle(for: CunningDocumentScannerPlugin.self)
+        let codeBundle = Bundle(for: CunningDocumentScannerPlugin.self)
+        guard let url = codeBundle.url(forResource: "cunning_document_scanner_resources", withExtension: "bundle"),
+              let bundle = Bundle(url: url) else {
+            return codeBundle
+        }
+        return bundle
         #endif
-    }
+    }()
 
     /// Helper to fetch localized string translations for keys, falling back to a default value.
     func getLocalizedOption(_ key: String, defaultValue: String) -> String {

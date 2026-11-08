@@ -14,11 +14,14 @@ A document scanner plugin for flutter. Scan and crop automatically on iOS and An
   s.authors          = ['Cunning GmbH', 'Victor Carreras']
   s.source           = { :path => '.' }
   s.source_files = 'cunning_document_scanner/Sources/cunning_document_scanner/**/*.swift'
-  s.resources = 'cunning_document_scanner/Sources/cunning_document_scanner/Resources/**/*'
-  # The privacy manifest goes in its own bundle: copied loose by `s.resources` it would land at
-  # the root of the app bundle under static linkage and collide with the app's own manifest.
+  # Resources go in a bundle of their own: copied loose, as `s.resources` does, they land at the
+  # root of the app bundle under static linkage, where the translations replace the app's own
+  # Localizable.strings and the privacy manifest collides with the app's.
   s.resource_bundles = {
-    'cunning_document_scanner_privacy' => ['cunning_document_scanner/Sources/cunning_document_scanner/PrivacyInfo.xcprivacy']
+    'cunning_document_scanner_resources' => [
+      'cunning_document_scanner/Sources/cunning_document_scanner/Resources/*.lproj',
+      'cunning_document_scanner/Sources/cunning_document_scanner/PrivacyInfo.xcprivacy'
+    ]
   }
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
