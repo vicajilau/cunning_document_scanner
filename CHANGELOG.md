@@ -1,3 +1,17 @@
+## 3.1.0
+
+### Added
+* **`scanDocuments()` returns a typed `ScanResult`.** `getPictures()` returned a `List<String>` whose meaning depended on `asPdf`: page images, or a one-element list holding a PDF. `ScanResult` names the two apart as `images` and `pdf`.
+* **Images and a PDF from a single scan.** `ScanOutput.imagesAndPdf` returns the page images together with a PDF built from them, which ML Kit has always been able to produce on Android. `ScanOutput.images` and `ScanOutput.pdf` match the two modes `asPdf` offered.
+* **Dropped pages are reported.** The iOS document camera and the Android gallery picker cannot enforce `noOfPages`, so pages past the limit were discarded with no trace. `ScanResult.discardedPages` now says how many.
+* **The scanner can be faked in tests.** Every call goes through `CunningDocumentScannerPlatform.instance`, which an app can replace with its own implementation to test its scanning flows without a device or a mocked method channel. The README shows how.
+
+### Deprecated
+* **`getPictures()`**, in favour of `scanDocuments()`. It keeps working unchanged and will be removed in 4.0.0. To migrate, read `result.images`, or `result.pdf` where `asPdf: true` was passed.
+
+### Fixed
+* **The README claimed Android always enforces `noOfPages`.** The Android gallery picker has no selection limit, so extra images were silently dropped there too. The page limit section now describes every flow, and `discardedPages` reports it.
+
 ## 3.0.5
 
 ### Added

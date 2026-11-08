@@ -40,12 +40,15 @@ class CunningDocumentScannerPlugin :
     // / Binding associated with the current activity.
     private var binding: ActivityPluginBinding? = null
 
-    // / The pending Flutter Result object to return scanned images paths back.
-    // / Held for the duration of a single `getPictures` flow and cleared by `resolve`/`fail`.
+    // / The pending Flutter Result object to return the scan back to Dart.
+    // / Held for the duration of a single `scanDocuments` flow and cleared by `resolve`/`fail`.
     private var pendingResult: Result? = null
 
-    // / Flag to check if scanned document must be exported as PDF.
-    private var asPdf: Boolean = false
+    // / The files the in-flight scan must produce.
+    private var output: ScanOutput = ScanOutput.IMAGES
+
+    // / Pages the user picked beyond `noOfPages` in the in-flight scan, which were dropped.
+    private var discardedPages: Int = 0
 
     // / Maximum number of pages requested for the in-flight scan.
     private var noOfPages: Int = DEFAULT_NO_OF_PAGES
@@ -84,13 +87,13 @@ class CunningDocumentScannerPlugin :
     ) {
         when (call.method) {
             "cleanCache" -> cleanCache(result)
-            "getPictures" -> startGetPictures(call, result)
+            "scanDocuments" -> startScanDocuments(call, result)
             else -> result.notImplemented()
         }
     }
 
     // / Validates plugin state and dispatches a scan to the requested source.
-    private fun startGetPictures(
+    private fun startScanDocuments(
         call: MethodCall,
         result: Result,
     ) {
@@ -107,7 +110,8 @@ class CunningDocumentScannerPlugin :
         }
 
         this.noOfPages = call.argument<Int>("noOfPages") ?: DEFAULT_NO_OF_PAGES
-        this.asPdf = call.argument<Boolean>("asPdf") ?: false
+        this.output = ScannerArguments.resolveOutput(call.argument<String>("output"))
+        this.discardedPages = 0
         this.pendingResult = result
 
         val scannerSource =
@@ -120,7 +124,7 @@ class CunningDocumentScannerPlugin :
         if (scannerSource == "gallery") {
             startGalleryPicker()
         } else {
-            startScan(noOfPages, scannerSource == "camera_and_gallery", scannerMode, asPdf)
+            startScan(noOfPages, scannerSource == "camera_and_gallery", scannerMode, output)
         }
     }
 
@@ -128,6 +132,14 @@ class CunningDocumentScannerPlugin :
     private fun resolve(value: Any?) {
         pendingResult?.success(value)
         pendingResult = null
+    }
+
+    // / Completes the pending Flutter call with the files of a finished scan.
+    private fun resolveScan(
+        images: List<String>,
+        pdf: String?,
+    ) {
+        resolve(ScannerArguments.scanResult(images, pdf, discardedPages))
     }
 
     // / Completes the pending Flutter call with an error and releases it.
@@ -217,7 +229,10 @@ class CunningDocumentScannerPlugin :
             return
         }
 
+        // ACTION_GET_CONTENT has no selection limit, so the excess is dropped here and
+        // reported to Dart rather than silently lost.
         val limitedUris = uris.take(noOfPages)
+        discardedPages = uris.size - limitedUris.size
         val intent =
             Intent(currentActivity, DocumentScannerActivity::class.java).apply {
                 // The cropper runs in the host application's process but still needs read
@@ -305,21 +320,24 @@ class CunningDocumentScannerPlugin :
         }
 
         try {
-            if (asPdf) {
+            var pdfPath: String? = null
+            if (output.wantsPdf) {
                 val pdfUri = scanningResult.pdf?.uri
-                if (pdfUri != null) {
-                    val pdfFile = FileUtil().movePdfToScanStorage(context, pdfUri)
-                    resolve(listOf(pdfFile.absolutePath))
-                } else {
+                if (pdfUri == null) {
                     fail("ERROR", "No PDF returned from ML Kit scanner")
+                    return
                 }
-            } else {
-                val successResponse =
+                pdfPath = FileUtil().movePdfToScanStorage(context, pdfUri).absolutePath
+            }
+            val images =
+                if (output.wantsImages) {
                     scanningResult.pages.orEmpty().mapIndexed { index, page ->
                         FileUtil().movePageToScanStorage(context, page.imageUri, index).absolutePath
                     }
-                resolve(successResponse)
-            }
+                } else {
+                    emptyList()
+                }
+            resolveScan(images, pdfPath)
         } catch (e: IOException) {
             fail("ERROR", "Failed to persist ML Kit scanner output: ${e.message}")
         }
@@ -347,24 +365,30 @@ class CunningDocumentScannerPlugin :
             return
         }
 
-        val successResponse = croppedImageResults.map { it.removePrefix("file://") }
+        val images = croppedImageResults.map { it.removePrefix("file://") }
 
-        if (asPdf) {
-            val currentActivity = activity
-            if (currentActivity == null) {
-                fail("NO_ACTIVITY", "Plugin is not attached to an Activity")
-                return
+        if (!output.wantsPdf) {
+            resolveScan(images, null)
+            return
+        }
+
+        val currentActivity = activity
+        if (currentActivity == null) {
+            fail("NO_ACTIVITY", "Plugin is not attached to an Activity")
+            return
+        }
+        try {
+            val pdfFile = FileUtil().createPdfFile(currentActivity)
+            FileUtil().convertImagesToPdf(images, pdfFile)
+            if (output.wantsImages) {
+                resolveScan(images, pdfFile.absolutePath)
+            } else {
+                // The pages only existed to build the PDF.
+                images.forEach { File(it).delete() }
+                resolveScan(emptyList(), pdfFile.absolutePath)
             }
-            try {
-                val pdfFile = FileUtil().createPdfFile(currentActivity)
-                FileUtil().convertImagesToPdf(successResponse, pdfFile)
-                successResponse.forEach { File(it).delete() }
-                resolve(listOf(pdfFile.absolutePath))
-            } catch (e: Exception) {
-                fail("ERROR", "Failed to create PDF from fallback scanner: ${e.message}")
-            }
-        } else {
-            resolve(successResponse)
+        } catch (e: Exception) {
+            fail("ERROR", "Failed to create PDF from fallback scanner: ${e.message}")
         }
     }
 
@@ -406,7 +430,7 @@ class CunningDocumentScannerPlugin :
         noOfPages: Int,
         isGalleryImportAllowed: Boolean,
         scannerMode: Int,
-        asPdf: Boolean,
+        output: ScanOutput,
     ) {
         val currentActivity = activity
         if (currentActivity == null) {
@@ -421,10 +445,10 @@ class CunningDocumentScannerPlugin :
                 .setPageLimit(noOfPages)
                 .setScannerMode(scannerMode)
 
-        if (asPdf) {
-            optionsBuilder.setResultFormats(RESULT_FORMAT_PDF)
-        } else {
-            optionsBuilder.setResultFormats(RESULT_FORMAT_JPEG)
+        when (output) {
+            ScanOutput.IMAGES -> optionsBuilder.setResultFormats(RESULT_FORMAT_JPEG)
+            ScanOutput.PDF -> optionsBuilder.setResultFormats(RESULT_FORMAT_PDF)
+            ScanOutput.IMAGES_AND_PDF -> optionsBuilder.setResultFormats(RESULT_FORMAT_JPEG, RESULT_FORMAT_PDF)
         }
 
         val options = optionsBuilder.build()

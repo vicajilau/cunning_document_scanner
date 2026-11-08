@@ -36,6 +36,38 @@ class ScannerArgumentsTest {
     }
 
     @Test
+    fun `resolveOutput maps every documented value`() {
+        assertEquals(ScanOutput.IMAGES, ScannerArguments.resolveOutput("images"))
+        assertEquals(ScanOutput.PDF, ScannerArguments.resolveOutput("pdf"))
+        assertEquals(ScanOutput.IMAGES_AND_PDF, ScannerArguments.resolveOutput("images_and_pdf"))
+    }
+
+    @Test
+    fun `resolveOutput falls back to images for null and unknown values`() {
+        assertEquals(ScanOutput.IMAGES, ScannerArguments.resolveOutput(null))
+        assertEquals(ScanOutput.IMAGES, ScannerArguments.resolveOutput("nonsense"))
+    }
+
+    @Test
+    fun `ScanOutput states which files each output produces`() {
+        assertTrue(ScanOutput.IMAGES.wantsImages)
+        assertFalse(ScanOutput.IMAGES.wantsPdf)
+        assertFalse(ScanOutput.PDF.wantsImages)
+        assertTrue(ScanOutput.PDF.wantsPdf)
+        assertTrue(ScanOutput.IMAGES_AND_PDF.wantsImages)
+        assertTrue(ScanOutput.IMAGES_AND_PDF.wantsPdf)
+    }
+
+    @Test
+    fun `scanResult carries the keys the Dart side reads`() {
+        val result = ScannerArguments.scanResult(listOf("/a.jpg", "/b.jpg"), "/doc.pdf", 2)
+
+        assertEquals(listOf("/a.jpg", "/b.jpg"), result["images"])
+        assertEquals("/doc.pdf", result["pdf"])
+        assertEquals(2, result["discardedPages"])
+    }
+
+    @Test
     fun `isPluginScanFile matches only files this plugin wrote`() {
         assertTrue(ScannerArguments.isPluginScanFile("DOCUMENT_SCAN_0_20260809_120000.jpg"))
         assertTrue(ScannerArguments.isPluginScanFile("DOCUMENT_SCAN_20260809_120000.pdf"))

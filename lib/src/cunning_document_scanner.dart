@@ -1,37 +1,32 @@
 import 'dart:async';
 
-import 'package:flutter/services.dart';
-
 import 'android_scanner_mode.dart';
+import 'cunning_document_scanner_platform.dart';
 import 'exceptions.dart';
 import 'ios_scanner_options.dart';
+import 'scan_output.dart';
+import 'scan_result.dart';
 import 'scanner_source.dart';
 
 /// A class that provides a simple way to scan documents.
 class CunningDocumentScanner {
-  /// The method channel used to interact with the native platform.
-  static const MethodChannel _channel =
-      MethodChannel('cunning_document_scanner');
-
-  /// Starts the document scanning process.
+  /// Scans one or more document pages.
   ///
-  /// This method will open the camera and allow the user to scan documents.
+  /// [noOfPages] is the maximum number of pages the result may hold (must be > 0).
+  /// Android's scanner and the iOS photo picker enforce it while the user scans.
+  /// The iOS document camera and the Android gallery picker cannot, so pages past
+  /// the limit are dropped and counted in [ScanResult.discardedPages].
   ///
-  /// [noOfPages] is the maximum number of pages that can be scanned (must be > 0).
+  /// [scannerSource] controls where pages come from: camera, gallery, or a choice
+  /// of both.
   ///
-  /// How the limit is applied differs by platform. Android and the iOS photo
-  /// picker enforce it while scanning, so the user cannot exceed it. The iOS
-  /// document camera exposes no page limit, so extra pages are discarded after
-  /// the fact: a user who scans ten pages with `noOfPages: 5` keeps the first
-  /// five and is not told about the rest.
-  /// [isGalleryImportAllowed] is deprecated, use [scannerSource] instead.
-  /// [scannerSource] controls where images are sourced from (camera, gallery, or both).
+  /// [output] selects the files produced: page images, a single PDF, or both.
+  ///
   /// [androidScannerMode] controls the ML Kit scanner mode on Android only.
-  /// [iosScannerOptions] is a set of options for the iOS scanner.
-  /// [asPdf] is a flag that indicates if the scanned pages should be compiled and returned as a single PDF file path.
   ///
-  /// Returns a list of paths to the scanned images, or null if the user cancels
-  /// the operation. Cancellation reports null on every platform.
+  /// [iosScannerOptions] configures the image format and cropper on iOS only.
+  ///
+  /// Returns null if the user cancels, on every platform.
   ///
   /// The returned files live in a plugin-owned cache directory and are removed by
   /// [cleanCache]. Copy anything you need to keep to your own storage.
@@ -43,6 +38,53 @@ class CunningDocumentScanner {
   /// Throws an [ArgumentError] if [noOfPages] is less than or equal to 0.
   /// Throws a [CunningDocumentScannerException] if camera permission is denied
   /// (with `code` `'permission_denied'`) or a scanning error occurs.
+  static Future<ScanResult?> scanDocuments({
+    int noOfPages = 100,
+    ScannerSource scannerSource = ScannerSource.camera,
+    ScanOutput output = ScanOutput.images,
+    AndroidScannerMode androidScannerMode = AndroidScannerMode.full,
+    IosScannerOptions? iosScannerOptions,
+  }) {
+    if (noOfPages <= 0) {
+      throw ArgumentError.value(
+        noOfPages,
+        'noOfPages',
+        'noOfPages must be greater than 0',
+      );
+    }
+
+    return CunningDocumentScannerPlatform.instance.scanDocuments(
+      noOfPages: noOfPages,
+      scannerSource: scannerSource,
+      output: output,
+      androidScannerMode: androidScannerMode,
+      iosScannerOptions: iosScannerOptions,
+    );
+  }
+
+  /// Starts the document scanning process.
+  ///
+  /// Prefer [scanDocuments], which returns a [ScanResult] that tells images and
+  /// PDF apart, can produce both at once, and reports pages dropped for exceeding
+  /// [noOfPages].
+  ///
+  /// [noOfPages] is the maximum number of pages that can be scanned (must be > 0).
+  /// The iOS document camera exposes no page limit, so extra pages are discarded
+  /// after the fact without telling the caller.
+  /// [isGalleryImportAllowed] is deprecated, use [scannerSource] instead.
+  /// [scannerSource] controls where images are sourced from (camera, gallery, or both).
+  /// [androidScannerMode] controls the ML Kit scanner mode on Android only.
+  /// [iosScannerOptions] is a set of options for the iOS scanner.
+  /// [asPdf] returns a single-element list holding the path of a PDF instead of
+  /// the page images.
+  ///
+  /// Returns a list of paths, or null if the user cancels the operation.
+  ///
+  /// Throws an [ArgumentError] if [noOfPages] is less than or equal to 0.
+  /// Throws a [CunningDocumentScannerException] if camera permission is denied
+  /// (with `code` `'permission_denied'`) or a scanning error occurs.
+  @Deprecated('Use scanDocuments instead, which returns a typed ScanResult. '
+      'This method will be removed in 4.0.0.')
   static Future<List<String>?> getPictures({
     int noOfPages = 100,
     @Deprecated('Use scannerSource instead')
@@ -52,45 +94,22 @@ class CunningDocumentScanner {
     IosScannerOptions? iosScannerOptions,
     bool asPdf = false,
   }) async {
-    if (noOfPages <= 0) {
-      throw ArgumentError.value(
-        noOfPages,
-        'noOfPages',
-        'noOfPages must be greater than 0',
-      );
-    }
-
-    final resolvedSource = scannerSource ??
-        (isGalleryImportAllowed
-            ? ScannerSource.cameraAndGallery
-            : ScannerSource.camera);
-
-    final List<dynamic>? pictures;
-    try {
-      pictures = await _channel.invokeMethod<List<dynamic>>('getPictures', {
-        'noOfPages': noOfPages,
-        'isGalleryImportAllowed': isGalleryImportAllowed,
-        'scannerSource': resolvedSource.methodChannelValue,
-        'androidScannerMode': androidScannerMode.methodChannelValue,
-        'asPdf': asPdf,
-        if (iosScannerOptions != null)
-          'iosScannerOptions': iosScannerOptions.toMap(),
-      });
-    } on PlatformException catch (e) {
-      // The native side reports failures as PlatformException. Surfacing them as
-      // the package's own exception keeps callers on a single catch clause.
-      throw CunningDocumentScannerException(
-        e.message ?? 'The document scan failed',
-        code: e.code,
-      );
-    }
-
-    // Android historically reported cancellation as an empty list while iOS
-    // reported null. Both are normalized to null here.
-    if (pictures == null || pictures.isEmpty) {
-      return null;
-    }
-    return pictures.map((e) => e as String).toList();
+    final result = await scanDocuments(
+      noOfPages: noOfPages,
+      scannerSource: scannerSource ??
+          (isGalleryImportAllowed
+              ? ScannerSource.cameraAndGallery
+              : ScannerSource.camera),
+      output: asPdf ? ScanOutput.pdf : ScanOutput.images,
+      androidScannerMode: androidScannerMode,
+      iosScannerOptions: iosScannerOptions,
+    );
+    if (result == null) return null;
+    final pdf = result.pdf;
+    // Callers of this method have always received a growable list of their own.
+    return asPdf
+        ? (pdf == null ? null : <String>[pdf])
+        : result.images.toList();
   }
 
   /// Clears the temporary scanned images and generated PDF files this plugin created.
@@ -99,14 +118,6 @@ class CunningDocumentScanner {
   /// application are left untouched.
   ///
   /// Throws a [CunningDocumentScannerException] if the files cannot be removed.
-  static Future<void> cleanCache() async {
-    try {
-      await _channel.invokeMethod<void>('cleanCache');
-    } on PlatformException catch (e) {
-      throw CunningDocumentScannerException(
-        e.message ?? 'Failed to clean the scanner cache',
-        code: e.code,
-      );
-    }
-  }
+  static Future<void> cleanCache() =>
+      CunningDocumentScannerPlatform.instance.cleanCache();
 }
