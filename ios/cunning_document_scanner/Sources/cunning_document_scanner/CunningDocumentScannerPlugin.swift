@@ -44,7 +44,7 @@ public class CunningDocumentScannerPlugin: NSObject,
     /// UIKit calls `presentationControllerDidDismiss` for that dismissal too, not only for a
     /// user tapping outside/swiping the sheet away, so this distinguishes the two: the delegate
     /// clears it and ignores the callback when set, otherwise it treats the dismissal as a cancel.
-    private var isHandlingAlertAction = false
+    var isHandlingAlertAction = false
 
     /// Resolves the current visible or root UIViewController on the key window.
     var rootViewController: UIViewController? {
@@ -225,6 +225,12 @@ public class CunningDocumentScannerPlugin: NSObject,
 
     /// Launches the photo picker (PHPickerViewController on iOS 14+, fallback to UIImagePickerController).
     func openGallery(from presentedVC: UIViewController) {
+        presentedVC.present(makeGalleryPicker(), animated: true)
+    }
+
+    /// Builds the photo picker for the current options, wired so that every way of closing it
+    /// delivers the result.
+    func makeGalleryPicker() -> UIViewController {
         if #available(iOS 14.0, *) {
             var configuration = PHPickerConfiguration()
             configuration.filter = .images
@@ -232,7 +238,11 @@ public class CunningDocumentScannerPlugin: NSObject,
 
             let picker = PHPickerViewController(configuration: configuration)
             picker.delegate = self
-            presentedVC.present(picker, animated: true)
+            // The picker is a sheet, and swiping it down slowly dismisses it without
+            // `picker(_:didFinishPicking:)` running, which would strand the result and reject
+            // every later scan as ALREADY_ACTIVE. `presentationControllerDidDismiss` catches it.
+            picker.presentationController?.delegate = self
+            return picker
         } else {
             let picker = UIImagePickerController()
             picker.sourceType = .photoLibrary
@@ -240,7 +250,7 @@ public class CunningDocumentScannerPlugin: NSObject,
             // Sheet-style presentation lets the user swipe this picker away without
             // `imagePickerControllerDidCancel` running, which would strand the result.
             picker.modalPresentationStyle = .fullScreen
-            presentedVC.present(picker, animated: true)
+            return picker
         }
     }
 
@@ -543,12 +553,19 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
 
 extension CunningDocumentScannerPlugin: UIPopoverPresentationControllerDelegate {
 
-    /// Treats a tap-outside dismissal of the iPad popover as a cancellation.
+    /// Treats a user-driven dismissal of the photo picker sheet or the iPad popover as a
+    /// cancellation.
     ///
-    /// UIKit calls this both for that gesture-driven dismissal and for the one that follows
-    /// tapping Camera or Gallery, so `isHandlingAlertAction` is checked to ignore the latter.
+    /// For the popover, UIKit calls this both for a tap outside it and for the dismissal that
+    /// follows tapping Camera or Gallery, so `isHandlingAlertAction` is checked to ignore the
+    /// latter. The picker skips that check: the flag is still set from choosing Gallery, since
+    /// on iPhone nothing clears it, and the picker only reaches here when swiped away.
     /// `finish` is a no-op once the result has already been delivered.
     public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        if #available(iOS 14.0, *), presentationController.presentedViewController is PHPickerViewController {
+            finish(nil)
+            return
+        }
         if isHandlingAlertAction {
             isHandlingAlertAction = false
             return

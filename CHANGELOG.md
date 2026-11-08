@@ -10,6 +10,7 @@
 * **`getPictures()`**, in favour of `scanDocuments()`. It keeps working unchanged and will be removed in 4.0.0. To migrate, read `result.images`, or `result.pdf` where `asPdf: true` was passed.
 
 ### Fixed
+* **Swiping the iOS photo picker away left the plugin stuck.** Dragging the picker sheet down slowly dismisses it without iOS reporting a selection, so the scan never completed and every later call failed with `ALREADY_ACTIVE` until the app was killed. Reported in [#183](https://github.com/vicajilau/cunning_document_scanner/issues/183). The dismissal now completes the scan as a cancellation, returning `null`.
 * **Under CocoaPods with static linkage, the plugin's translations landed in your app's own bundle.** The podspec copied the `*.lproj` folders loose, so they were placed at the root of the app, where they could replace your app's `Localizable.strings`. They now ship in the plugin's resource bundle, next to the privacy manifest. Swift Package Manager and dynamic frameworks were not affected.
 * **The README claimed Android always enforces `noOfPages`.** The Android gallery picker has no selection limit, so extra images were silently dropped there too. The page limit section now describes every flow, and `discardedPages` reports it.
 
