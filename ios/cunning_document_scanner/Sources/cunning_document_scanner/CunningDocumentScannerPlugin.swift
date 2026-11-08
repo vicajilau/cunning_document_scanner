@@ -278,17 +278,31 @@ public class CunningDocumentScannerPlugin: NSObject,
         return storageDir
     }
 
+    /// The bundle holding the plugin's translations.
+    ///
+    /// Swift Package Manager generates `Bundle.module`. CocoaPods builds the
+    /// `cunning_document_scanner_resources` bundle declared in the podspec, which sits inside
+    /// the plugin framework, or inside the app itself when the pod is linked statically.
+    static let resourceBundle: Bundle = {
+        #if SWIFT_PACKAGE
+        return Bundle.module
+        #else
+        let codeBundle = Bundle(for: CunningDocumentScannerPlugin.self)
+        guard let url = codeBundle.url(forResource: "cunning_document_scanner_resources", withExtension: "bundle"),
+              let bundle = Bundle(url: url) else {
+            return codeBundle
+        }
+        return bundle
+        #endif
+    }()
+
     /// Helper to fetch localized string translations for keys, falling back to a default value.
     func getLocalizedOption(_ key: String, defaultValue: String) -> String {
         let mainBundleValue = Bundle.main.localizedString(forKey: key, value: nil, table: nil)
         if mainBundleValue != key {
             return mainBundleValue
         }
-        #if SWIFT_PACKAGE
-        let pluginBundle = Bundle.module
-        #else
-        let pluginBundle = Bundle(for: CunningDocumentScannerPlugin.self)
-        #endif
+        let pluginBundle = Self.resourceBundle
 
         var resolvedBundle = pluginBundle
         search: for language in pluginLanguagePreferences {
@@ -420,9 +434,9 @@ public class CunningDocumentScannerPlugin: NSObject,
         didFinishWith scan: VNDocumentCameraScan
     ) {
         var images: [UIImage] = []
-        let maxPages = min(scan.pageCount, scannerOptions.noOfPages)
-        discardedPages = scan.pageCount - maxPages
-        for i in 0 ..< maxPages {
+        let pages = scannerOptions.pageSplit(forScanned: scan.pageCount)
+        discardedPages = pages.discarded
+        for i in 0 ..< pages.kept {
             images.append(scan.imageOfPage(at: i))
         }
         processSelectedImages(images)
@@ -508,11 +522,10 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
         }
         
         dispatchGroup.notify(queue: .main) {
-            var validImages = images.filter { $0.size.width > 0 }
-            if validImages.count > self.scannerOptions.noOfPages {
-                self.discardedPages = validImages.count - self.scannerOptions.noOfPages
-                validImages = Array(validImages.prefix(self.scannerOptions.noOfPages))
-            }
+            let loadedImages = images.filter { $0.size.width > 0 }
+            let pages = self.scannerOptions.pageSplit(forScanned: loadedImages.count)
+            self.discardedPages = pages.discarded
+            let validImages = Array(loadedImages.prefix(pages.kept))
             if validImages.isEmpty {
                 picker.dismiss(animated: true) {
                     self.finish(nil)

@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:app_settings/app_settings.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:cunning_document_scanner_example/example_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
+
+/// Implemented by the example app itself, in `MainActivity.kt` and `AppDelegate.swift`.
+const MethodChannel _settingsChannel =
+    MethodChannel('cunning_document_scanner_example/settings');
 
 class ScannerHomeScreen extends StatefulWidget {
   const ScannerHomeScreen({super.key});
@@ -49,11 +52,8 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
           IconButton(
             icon: const Icon(Icons.language),
             tooltip: strings.changeLanguage,
-            onPressed: () => AppSettings.openAppSettings(
-              type: Platform.isAndroid
-                  ? AppSettingsType.appLocale
-                  : AppSettingsType.settings,
-            ),
+            onPressed: () =>
+                _settingsChannel.invokeMethod<void>('openLanguageSettings'),
           ),
         ],
       ),

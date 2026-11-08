@@ -92,6 +92,17 @@ struct CunningScannerOptions {
         self.showFilterBar = showFilterBar
     }
 
+    /// Splits `pageCount` scanned pages into those returned under `noOfPages` and those dropped.
+    ///
+    /// The document camera has no page limit of its own, so the excess is cut afterwards and
+    /// its size reported to Dart as `discardedPages`. Negative inputs count as zero, so the
+    /// result is always safe to use as a range bound.
+    func pageSplit(forScanned pageCount: Int) -> (kept: Int, discarded: Int) {
+        let scanned = max(pageCount, 0)
+        let kept = min(scanned, max(noOfPages, 0))
+        return (kept, scanned - kept)
+    }
+
     /// Factory method to build a CunningScannerOptions object from incoming Flutter MethodChannel arguments.
     static func fromArguments(args: Any?) -> CunningScannerOptions {
         guard let arguments = args as? [String: Any] else {
