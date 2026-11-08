@@ -314,7 +314,7 @@ If you want to contribute to this plugin or run the example app locally:
 1. Clone this repository:
 
    ```bash
-   git clone https://github.com/jachzen/cunning_document_scanner.git
+   git clone https://github.com/vicajilau/cunning_document_scanner.git
    ```
 
 2. Navigate to the example directory:
@@ -391,7 +391,7 @@ Contributions are welcome. If you want to contribute to the development of Cunni
 
 ## Issues and Support
 
-If you encounter any issues or have questions, please open an [issue](https://github.com/jachzen/cunning_document_scanner/issues). We're here to help.
+If you encounter any issues or have questions, please open an [issue](https://github.com/vicajilau/cunning_document_scanner/issues). We're here to help.
 
 ## License
 
