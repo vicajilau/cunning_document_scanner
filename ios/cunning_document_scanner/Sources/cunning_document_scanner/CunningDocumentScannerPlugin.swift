@@ -23,7 +23,7 @@ public class CunningDocumentScannerPlugin: NSObject,
 
     /// The Flutter channel result callback pointer to return document paths to Dart/Flutter.
     ///
-    /// Set for the duration of a single `getPictures` flow and cleared by `finish(_:)`.
+    /// Set for the duration of a single `scanDocuments` flow and cleared by `finish(_:)`.
     /// A `FlutterResult` must be invoked exactly once, so it is consumed rather than reused.
     var resultChannel: FlutterResult?
 
@@ -32,6 +32,12 @@ public class CunningDocumentScannerPlugin: NSObject,
     
     /// The options passed from the Dart/Flutter side.
     var scannerOptions = CunningScannerOptions()
+
+    /// Pages the user scanned beyond `noOfPages` in the current flow, which were dropped.
+    ///
+    /// The document camera has no page limit of its own, so the excess can only be cut
+    /// afterwards; it is reported to Dart instead of disappearing without a trace.
+    var discardedPages = 0
 
     /// Set right before the Camera or Gallery action sheet entries open their own flow.
     ///
@@ -56,14 +62,14 @@ public class CunningDocumentScannerPlugin: NSObject,
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
-    /// Handles incoming FlutterMethodCalls. Specifically listens to "getPictures" and "cleanCache" methods.
+    /// Handles incoming FlutterMethodCalls. Specifically listens to "scanDocuments" and "cleanCache" methods.
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         if call.method == "cleanCache" {
             self.cleanCache(result: result)
             return
         }
 
-        guard call.method == "getPictures" else {
+        guard call.method == "scanDocuments" else {
             result(FlutterMethodNotImplemented)
             return
         }
@@ -92,6 +98,7 @@ public class CunningDocumentScannerPlugin: NSObject,
         }
 
         scannerOptions = CunningScannerOptions.fromArguments(args: call.arguments)
+        discardedPages = 0
         resultChannel = result
 
         switch scannerOptions.scannerSource {
@@ -334,7 +341,7 @@ public class CunningDocumentScannerPlugin: NSObject,
 
     /// Delivers a value to Flutter exactly once and releases the pending result callback.
     ///
-    /// Every exit path of a `getPictures` flow funnels through here so the callback can
+    /// Every exit path of a `scanDocuments` flow funnels through here so the callback can
     /// never be invoked twice (which traps) nor left dangling (which would block the next call).
     func finish(_ value: Any?) {
         guard let channel = resultChannel else { return }
@@ -342,35 +349,35 @@ public class CunningDocumentScannerPlugin: NSObject,
         channel(value)
     }
 
-    /// Writes scanned or cropped images to local files (or compiles them to a single PDF) and returns paths to Flutter.
+    /// Writes the pages as image files, a PDF, or both, and returns the result to Flutter.
     func processSelectedImages(_ images: [UIImage]) {
         let storageDir = getScanStorageDirectory()
-        let currentDateTime = Date()
         let df = DateFormatter()
         df.dateFormat = "yyyyMMdd-HHmmss"
-        let formattedDate = df.string(from: currentDateTime)
-        let prefix = Self.scanFilePrefix
+        let baseName = "\(Self.scanFilePrefix)\(df.string(from: Date()))"
 
-        if scannerOptions.asPdf {
+        var pdfPath: String?
+        if scannerOptions.output.wantsPdf {
             let pdfDocument = PDFDocument()
             for (i, pageImage) in images.enumerated() {
                 if let pdfPage = PDFPage(image: pageImage) {
                     pdfDocument.insert(pdfPage, at: i)
                 }
             }
-            let url = storageDir.appendingPathComponent("\(prefix)\(formattedDate).pdf")
-            if pdfDocument.write(to: url) {
-                finish([url.path])
-            } else {
-                let err = FlutterError(code: "ERROR", message: "Failed to generate PDF document", details: nil)
-                finish(err)
+            let url = storageDir.appendingPathComponent("\(baseName).pdf")
+            guard pdfDocument.write(to: url) else {
+                finish(FlutterError(code: "ERROR", message: "Failed to generate PDF document", details: nil))
+                return
             }
-        } else {
-            var filenames: [String] = []
+            pdfPath = url.path
+        }
+
+        var filenames: [String] = []
+        if scannerOptions.output.wantsImages {
             do {
                 for (i, page) in images.enumerated() {
                     let ext = scannerOptions.imageFormat.rawValue
-                    let url = storageDir.appendingPathComponent("\(prefix)\(formattedDate)-\(i).\(ext)")
+                    let url = storageDir.appendingPathComponent("\(baseName)-\(i).\(ext)")
 
                     let data: Data?
                     switch scannerOptions.imageFormat {
@@ -392,8 +399,17 @@ public class CunningDocumentScannerPlugin: NSObject,
                 finish(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
                 return
             }
-            finish(filenames)
         }
+
+        var result: [String: Any] = [
+            "images": filenames,
+            "discardedPages": discardedPages
+        ]
+        // Left out rather than set to nil: a missing key reads as null on the Dart side.
+        if let pdfPath = pdfPath {
+            result["pdf"] = pdfPath
+        }
+        finish(result)
     }
 
     // MARK: - VNDocumentCameraViewControllerDelegate
@@ -405,6 +421,7 @@ public class CunningDocumentScannerPlugin: NSObject,
     ) {
         var images: [UIImage] = []
         let maxPages = min(scan.pageCount, scannerOptions.noOfPages)
+        discardedPages = scan.pageCount - maxPages
         for i in 0 ..< maxPages {
             images.append(scan.imageOfPage(at: i))
         }
@@ -493,6 +510,7 @@ extension CunningDocumentScannerPlugin: PHPickerViewControllerDelegate {
         dispatchGroup.notify(queue: .main) {
             var validImages = images.filter { $0.size.width > 0 }
             if validImages.count > self.scannerOptions.noOfPages {
+                self.discardedPages = validImages.count - self.scannerOptions.noOfPages
                 validImages = Array(validImages.prefix(self.scannerOptions.noOfPages))
             }
             if validImages.isEmpty {

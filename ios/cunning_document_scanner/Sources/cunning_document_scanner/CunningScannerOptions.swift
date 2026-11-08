@@ -26,6 +26,19 @@ enum CunningScannerSource: String {
     case cameraAndGallery = "camera_and_gallery"
 }
 
+/// The files a scan must produce, mirroring the Dart `ScanOutput` enum.
+enum CunningScanOutput: String {
+    case images
+    case pdf
+    case imagesAndPdf = "images_and_pdf"
+
+    /// Whether one image file per page is returned.
+    var wantsImages: Bool { self != .pdf }
+
+    /// Whether a PDF document holding every page is returned.
+    var wantsPdf: Bool { self != .images }
+}
+
 /// A structure to hold document scanner configuration parameters.
 struct CunningScannerOptions {
     /// Target image format (PNG or JPG).
@@ -34,12 +47,9 @@ struct CunningScannerOptions {
     /// The compression quality from 0.0 to 1.0 (only applicable for JPG output).
     let jpgCompressionQuality: Double
     
-    /// If true, outputs scanned images combined into a single PDF document.
-    let asPdf: Bool
-    
-    /// Deprecated property indicating whether gallery selection is permitted.
-    let isGalleryImportAllowed: Bool
-    
+    /// The files the scan returns: page images, a PDF, or both.
+    let output: CunningScanOutput
+
     /// The target source for scanning (camera, gallery, or both).
     let scannerSource: CunningScannerSource
 
@@ -56,8 +66,7 @@ struct CunningScannerOptions {
     init() {
         self.imageFormat = .png
         self.jpgCompressionQuality = 1.0
-        self.asPdf = false
-        self.isGalleryImportAllowed = false
+        self.output = .images
         self.scannerSource = .camera
         self.noOfPages = 100
         self.defaultFilter = .original
@@ -68,8 +77,7 @@ struct CunningScannerOptions {
     init(
         imageFormat: CunningScannerImageFormat,
         jpgCompressionQuality: Double,
-        asPdf: Bool,
-        isGalleryImportAllowed: Bool,
+        output: CunningScanOutput,
         scannerSource: CunningScannerSource,
         noOfPages: Int = 100,
         defaultFilter: DocumentFilter = .original,
@@ -77,8 +85,7 @@ struct CunningScannerOptions {
     ) {
         self.imageFormat = imageFormat
         self.jpgCompressionQuality = jpgCompressionQuality
-        self.asPdf = asPdf
-        self.isGalleryImportAllowed = isGalleryImportAllowed
+        self.output = output
         self.scannerSource = scannerSource
         self.noOfPages = noOfPages
         self.defaultFilter = defaultFilter
@@ -91,12 +98,10 @@ struct CunningScannerOptions {
             return CunningScannerOptions()
         }
 
-        let asPdf = (arguments["asPdf"] as? Bool) ?? false
-        let isGalleryImportAllowed = (arguments["isGalleryImportAllowed"] as? Bool) ?? false
+        let output = CunningScanOutput(rawValue: (arguments["output"] as? String) ?? "") ?? .images
         let noOfPages = (arguments["noOfPages"] as? Int) ?? 100
         let sourceString = arguments["scannerSource"] as? String
-        let fallbackSource: CunningScannerSource = isGalleryImportAllowed ? .cameraAndGallery : .camera
-        let scannerSource = CunningScannerSource(rawValue: sourceString ?? "") ?? fallbackSource
+        let scannerSource = CunningScannerSource(rawValue: sourceString ?? "") ?? .camera
         
         let scannerOptionsDict = arguments["iosScannerOptions"] as? [String: Any]
         let imageFormat = (scannerOptionsDict?["imageFormat"] as? String) ?? "png"
@@ -107,8 +112,7 @@ struct CunningScannerOptions {
         return CunningScannerOptions(
             imageFormat: CunningScannerImageFormat(rawValue: imageFormat) ?? .png,
             jpgCompressionQuality: jpgCompressionQuality,
-            asPdf: asPdf,
-            isGalleryImportAllowed: isGalleryImportAllowed,
+            output: output,
             scannerSource: scannerSource,
             noOfPages: noOfPages,
             defaultFilter: DocumentFilter(methodChannelValue: defaultFilterName),

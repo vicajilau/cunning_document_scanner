@@ -132,13 +132,23 @@ An in-app language picker that only changes the `locale` of your `MaterialApp` c
 
 ## How to use ?
 
-The easiest way to get a list of images is:
+The easiest way to scan is:
 
 ```dart
-   final imagesPath = await CunningDocumentScanner.getPictures();
+   final result = await CunningDocumentScanner.scanDocuments();
+   if (result != null) {
+      print(result.images); // one file path per page
+   }
 ```
 
-`getPictures()` returns `null` when the user cancels, on every platform.
+`scanDocuments()` returns a `ScanResult`, or `null` when the user cancels, on every platform. A `ScanResult` holds:
+
+* **`images`**: the page image paths, in page order. Empty if you asked for a PDF only.
+* **`pdf`**: the PDF path, or `null` if you did not ask for a PDF.
+* **`discardedPages`**: how many pages went over `noOfPages` and were dropped. See [Page Limit](#page-limit).
+
+> [!NOTE]
+> `getPictures()` is deprecated in favour of `scanDocuments()` and will be removed in 4.0.0. It still works and returns the same `List<String>` as before. To migrate, read `result.images`, or `result.pdf` where you passed `asPdf: true`.
 
 ### File Lifetime
 
@@ -167,7 +177,7 @@ The plugin throws standard Dart exceptions when invalid parameters are supplied 
 
 ```dart
 try {
-  final pictures = await CunningDocumentScanner.getPictures(noOfPages: 5);
+  final result = await CunningDocumentScanner.scanDocuments(noOfPages: 5);
 } on ArgumentError catch (e) {
   print("Invalid argument: $e");
 } on CunningDocumentScannerException catch (e) {
@@ -177,14 +187,17 @@ try {
 
 ### PDF Export (Cross-Platform)
 
-You can also scan directly to a single PDF document. If `asPdf` is set to `true`, the method returns a list containing a single file path pointing to the generated PDF:
+Use `output` to choose the files a scan produces: page images (the default), a single PDF, or both at once:
 
 ```dart
-   final pdfPath = await CunningDocumentScanner.getPictures(
-      asPdf: true,
+   final result = await CunningDocumentScanner.scanDocuments(
+      output: ScanOutput.imagesAndPdf,
    );
-   // pdfPath will be something like: ['/path/to/document.pdf']
+   print(result?.pdf);    // '/path/to/DOCUMENT_SCAN_....pdf'
+   print(result?.images); // ['/path/to/DOCUMENT_SCAN_...-0.jpg', ...]
 ```
+
+With `ScanOutput.pdf` only the PDF is kept, and `images` is empty.
 
 ### Scanner Source (Cross-Platform)
 
@@ -195,9 +208,45 @@ Configure where images are acquired from using the `scannerSource` parameter:
 * **Camera and Gallery**: Opens a selection menu (iOS) or shows a gallery shortcut (Android) letting the user choose.
 
 ```dart
-   final imagesPath = await CunningDocumentScanner.getPictures(
+   final result = await CunningDocumentScanner.scanDocuments(
       scannerSource: ScannerSource.cameraAndGallery,
    );
+```
+
+### Page Limit
+
+`noOfPages` caps how many pages a scan returns. Android's scanner and the iOS photo picker enforce it while the user scans, so the limit cannot be exceeded. The iOS document camera and the Android gallery picker cannot enforce it, so pages past the limit are dropped after the fact. `ScanResult.discardedPages` tells you how many, so you can let the user know:
+
+```dart
+   final result = await CunningDocumentScanner.scanDocuments(noOfPages: 5);
+   if (result != null && result.discardedPages > 0) {
+      print('Only the first 5 pages were kept');
+   }
+```
+
+### Testing Your App
+
+Every call goes through `CunningDocumentScannerPlatform.instance`, which you can replace with a fake in your own tests so they run without a device:
+
+```dart
+class FakeScanner implements CunningDocumentScannerPlatform {
+  @override
+  Future<ScanResult?> scanDocuments({
+    required int noOfPages,
+    required ScannerSource scannerSource,
+    required ScanOutput output,
+    required AndroidScannerMode androidScannerMode,
+    IosScannerOptions? iosScannerOptions,
+  }) async => const ScanResult(images: ['/tmp/page-0.jpg']);
+
+  @override
+  Future<void> cleanCache() async {}
+}
+
+void main() {
+  setUp(() => CunningDocumentScannerPlatform.instance = FakeScanner());
+  // ...
+}
 ```
 
 ### Android Specific
@@ -205,14 +254,11 @@ Configure where images are acquired from using the `scannerSource` parameter:
 There are some features in Android that allow you to adjust the scanner that will be ignored in iOS:
 
 ```dart
-   final imagesPath = await CunningDocumentScanner.getPictures(
+   final result = await CunningDocumentScanner.scanDocuments(
       noOfPages: 1, // Limit the number of pages to 1
       androidScannerMode: AndroidScannerMode.base, // Use ML Kit base mode on Android (Optional)
    );
 ```
-
-> [!NOTE]
-> `noOfPages` is enforced while scanning on Android and in the iOS photo picker, so the user cannot go over the limit. The iOS document camera exposes no page limit, so any extra pages are discarded after scanning without notifying the user.
 
 
 
@@ -222,7 +268,7 @@ On iOS it is possible to configure which image format should be used to save of 
 
 ```dart
    // Returns images in JPEG format with a compression quality of 50%. 
-   final imagesPath = await CunningDocumentScanner.getPictures(
+   final result = await CunningDocumentScanner.scanDocuments(
       iosScannerOptions: IosScannerOptions(
          imageFormat: IosImageFormat.jpg,
          jpgCompressionQuality: 0.5,
@@ -235,7 +281,7 @@ On iOS it is possible to configure which image format should be used to save of 
 Images imported from the gallery go through the plugin's own cropper, which offers **Original**, **Color**, **Grayscale** and **B&W** filters. You can preselect one, and hide the selector entirely if you want a crop-only flow:
 
 ```dart
-   final imagesPath = await CunningDocumentScanner.getPictures(
+   final result = await CunningDocumentScanner.scanDocuments(
       scannerSource: ScannerSource.gallery,
       iosScannerOptions: IosScannerOptions(
          defaultFilter: IosDocumentFilter.blackAndWhite,

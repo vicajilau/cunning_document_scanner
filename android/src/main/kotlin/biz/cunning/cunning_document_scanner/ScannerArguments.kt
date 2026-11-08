@@ -4,6 +4,16 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_BASE_WITH_FILTER
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 
+// / The files a scan must produce, mirroring the Dart `ScanOutput` enum.
+enum class ScanOutput(
+    val wantsImages: Boolean,
+    val wantsPdf: Boolean,
+) {
+    IMAGES(wantsImages = true, wantsPdf = false),
+    PDF(wantsImages = false, wantsPdf = true),
+    IMAGES_AND_PDF(wantsImages = true, wantsPdf = true),
+}
+
 // / Pure helpers translating method channel arguments and file names.
 // / Kept free of Android framework types so they can be unit tested on the JVM.
 object ScannerArguments {
@@ -19,6 +29,27 @@ object ScannerArguments {
             "base_with_filter" -> SCANNER_MODE_BASE_WITH_FILTER
             else -> SCANNER_MODE_FULL
         }
+
+    // / Maps the `output` method channel value to a [ScanOutput].
+    // / Unknown or missing values fall back to page images, the historical default.
+    fun resolveOutput(output: String?): ScanOutput =
+        when (output) {
+            "pdf" -> ScanOutput.PDF
+            "images_and_pdf" -> ScanOutput.IMAGES_AND_PDF
+            else -> ScanOutput.IMAGES
+        }
+
+    // / Builds the map returned to Dart for a completed scan.
+    fun scanResult(
+        images: List<String>,
+        pdf: String?,
+        discardedPages: Int,
+    ): Map<String, Any?> =
+        mapOf(
+            "images" to images,
+            "pdf" to pdf,
+            "discardedPages" to discardedPages,
+        )
 
     // / Resolves the effective scanner source, honouring the deprecated
     // / `isGalleryImportAllowed` flag only when `scannerSource` was not supplied.

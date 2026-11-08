@@ -1,253 +1,90 @@
+// getPictures is deprecated but still supported, and its behaviour is tested here.
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const MethodChannel _channel = MethodChannel('cunning_document_scanner');
+
+/// The arguments of every call the mocked native side received, most recent last.
+final List<MethodCall> _calls = <MethodCall>[];
+
+/// Makes the native side answer every call with [handler].
+void _mockNative(Object? Function(MethodCall call) handler) {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(_channel, (MethodCall call) async {
+    _calls.add(call);
+    return handler(call);
+  });
+}
+
+/// Makes the native side complete every scan with [result].
+void _mockScan(Map<String, Object?>? result) => _mockNative((_) => result);
+
+Map<Object?, Object?> get _lastArguments =>
+    _calls.last.arguments as Map<Object?, Object?>;
+
+class _FakeScanner implements CunningDocumentScannerPlatform {
+  int? noOfPages;
+  ScannerSource? scannerSource;
+  ScanOutput? output;
+  bool cleaned = false;
+
+  @override
+  Future<ScanResult?> scanDocuments({
+    required int noOfPages,
+    required ScannerSource scannerSource,
+    required ScanOutput output,
+    required AndroidScannerMode androidScannerMode,
+    IosScannerOptions? iosScannerOptions,
+  }) async {
+    this.noOfPages = noOfPages;
+    this.scannerSource = scannerSource;
+    this.output = output;
+    return const ScanResult(images: <String>['/fake/page.jpg']);
+  }
+
+  @override
+  Future<void> cleanCache() async => cleaned = true;
+}
+
 void main() {
-  group('CunningDocumentScanner camera permission', () {
-    setUp(TestWidgetsFlutterBinding.ensureInitialized);
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    // The permission is requested natively (AVCaptureDevice on iOS), so what Dart
-    // owns is translating the native refusal into the documented exception.
-    testWidgets('a denied permission surfaces as the documented exception',
-        (WidgetTester tester) async {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
+  setUp(_calls.clear);
 
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) => throw PlatformException(
-          code: 'permission_denied',
-          message: 'Camera permission not granted',
-        ),
-      );
-
-      await expectLater(
-        CunningDocumentScanner.getPictures(),
-        throwsA(isA<CunningDocumentScannerException>()
-            .having((e) => e.code, 'code', 'permission_denied')
-            .having(
-                (e) => e.message, 'message', 'Camera permission not granted')),
-      );
-
-      // Mock handlers outlive the test that installed them, and the next group
-      // relies on the channel having none.
-      tester.binding.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, null);
-    });
+  tearDown(() {
+    // Mock handlers outlive the test that installed them.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_channel, null);
   });
 
-  group('CunningDocumentScanner Plugin exceptions', () {
-    setUp(TestWidgetsFlutterBinding.ensureInitialized);
+  group('scanDocuments', () {
+    test('sends the documented arguments, with defaults', () async {
+      _mockScan(<String, Object?>{
+        'images': <String>['/a.jpg']
+      });
 
-    test('getPictures with MissingPluginException', () async {
-      expect(() async => await CunningDocumentScanner.getPictures(),
-          throwsA(isA<MissingPluginException>()));
-    });
-  });
+      await CunningDocumentScanner.scanDocuments();
 
-  group('CunningDocumentScanner granted permission', () {
-    setUp(TestWidgetsFlutterBinding.ensureInitialized);
-
-    void loadPlatformChannel(WidgetTester tester, List<String> result) {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) => Future.value(result),
-      );
-    }
-
-    testWidgets('getPictures normalizes an empty native result to null',
-        (WidgetTester tester) async {
-      // Android reports cancellation as an empty list, iOS as null. Callers see null
-      // on both platforms so a single null check is enough.
-      loadPlatformChannel(tester, <String>[]);
-      final result = await CunningDocumentScanner.getPictures();
-      expect(result, isNull);
+      expect(_calls.single.method, 'scanDocuments');
+      expect(_lastArguments, <String, Object?>{
+        'noOfPages': 100,
+        'scannerSource': 'camera',
+        'output': 'images',
+        'androidScannerMode': 'full',
+      });
     });
 
-    testWidgets('getPictures multiple result', (WidgetTester tester) async {
-      final List<String> fakeResult = ['fake_url1', 'fake_url2', 'fake_url3'];
-      loadPlatformChannel(tester, fakeResult);
-      final result = await CunningDocumentScanner.getPictures();
-      expect(result, fakeResult);
-    });
+    test('serializes every option', () async {
+      _mockScan(<String, Object?>{'pdf': '/doc.pdf'});
 
-    testWidgets('getPictures passes asPdf parameter',
-        (WidgetTester tester) async {
-      final List<String> fakeResult = ['fake_pdf_url'];
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      bool passedAsPdf = false;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) {
-          passedAsPdf =
-              (methodCall.arguments as Map)['asPdf'] as bool? ?? false;
-          return Future.value(fakeResult);
-        },
-      );
-
-      final result = await CunningDocumentScanner.getPictures(asPdf: true);
-      expect(result, fakeResult);
-      expect(passedAsPdf, isTrue);
-    });
-
-    testWidgets('getPictures resolves scannerSource when explicitly provided',
-        (WidgetTester tester) async {
-      final List<String> fakeResult = ['fake_url'];
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      String? passedSource;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) {
-          passedSource =
-              (methodCall.arguments as Map)['scannerSource'] as String?;
-          return Future.value(fakeResult);
-        },
-      );
-
-      await CunningDocumentScanner.getPictures(
-          scannerSource: ScannerSource.gallery);
-      expect(passedSource, equals('gallery'));
-
-      await CunningDocumentScanner.getPictures(
-          scannerSource: ScannerSource.camera);
-      expect(passedSource, equals('camera'));
-    });
-
-    testWidgets(
-        'getPictures fallback to isGalleryImportAllowed when scannerSource is null',
-        (WidgetTester tester) async {
-      final List<String> fakeResult = ['fake_url'];
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      String? passedSource;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) {
-          passedSource =
-              (methodCall.arguments as Map)['scannerSource'] as String?;
-          return Future.value(fakeResult);
-        },
-      );
-
-      await CunningDocumentScanner.getPictures(isGalleryImportAllowed: true);
-      expect(passedSource, equals('camera_and_gallery'));
-
-      await CunningDocumentScanner.getPictures(isGalleryImportAllowed: false);
-      expect(passedSource, equals('camera'));
-    });
-
-    testWidgets('cleanCache calls native methodChannel',
-        (WidgetTester tester) async {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      bool cleanCacheCalled = false;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) {
-          if (methodCall.method == 'cleanCache') {
-            cleanCacheCalled = true;
-            return Future.value(null);
-          }
-          return Future.value(null);
-        },
-      );
-
-      await CunningDocumentScanner.cleanCache();
-      expect(cleanCacheCalled, isTrue);
-    });
-
-    testWidgets('getPictures throws ArgumentError when noOfPages is <= 0',
-        (WidgetTester tester) async {
-      expect(
-        () => CunningDocumentScanner.getPictures(noOfPages: 0),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => CunningDocumentScanner.getPictures(noOfPages: -5),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
-
-    testWidgets('getPictures maps a PlatformException to the package exception',
-        (WidgetTester tester) async {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) => throw PlatformException(
-          code: 'ALREADY_ACTIVE',
-          message: 'A document scan is already in progress',
-        ),
-      );
-
-      await expectLater(
-        CunningDocumentScanner.getPictures(),
-        throwsA(isA<CunningDocumentScannerException>()
-            .having((e) => e.code, 'code', 'ALREADY_ACTIVE')
-            .having((e) => e.message, 'message',
-                'A document scan is already in progress')),
-      );
-    });
-
-    testWidgets('cleanCache maps a PlatformException to the package exception',
-        (WidgetTester tester) async {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) => throw PlatformException(
-          code: 'CLEAN_CACHE_ERROR',
-          message: 'Permission denied',
-        ),
-      );
-
-      await expectLater(
-        CunningDocumentScanner.cleanCache(),
-        throwsA(isA<CunningDocumentScannerException>()
-            .having((e) => e.code, 'code', 'CLEAN_CACHE_ERROR')),
-      );
-    });
-
-    testWidgets('getPictures forwards the default androidScannerMode',
-        (WidgetTester tester) async {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      String? passedMode;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) {
-          passedMode =
-              (methodCall.arguments as Map)['androidScannerMode'] as String?;
-          return Future.value(<String>['fake_url']);
-        },
-      );
-
-      await CunningDocumentScanner.getPictures();
-      expect(passedMode, equals('full'));
-
-      await CunningDocumentScanner.getPictures(
-          androidScannerMode: AndroidScannerMode.baseWithFilter);
-      expect(passedMode, equals('base_with_filter'));
-    });
-
-    testWidgets('getPictures serializes the iOS scanner options',
-        (WidgetTester tester) async {
-      const MethodChannel channel = MethodChannel('cunning_document_scanner');
-
-      Map<dynamic, dynamic>? passedOptions;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        (MethodCall methodCall) {
-          passedOptions = (methodCall.arguments as Map)['iosScannerOptions']
-              as Map<dynamic, dynamic>?;
-          return Future.value(<String>['fake_url']);
-        },
-      );
-
-      await CunningDocumentScanner.getPictures(
+      await CunningDocumentScanner.scanDocuments(
+        noOfPages: 3,
+        scannerSource: ScannerSource.cameraAndGallery,
+        output: ScanOutput.imagesAndPdf,
+        androidScannerMode: AndroidScannerMode.baseWithFilter,
         iosScannerOptions: IosScannerOptions(
           imageFormat: IosImageFormat.jpg,
           jpgCompressionQuality: 0.5,
@@ -256,22 +93,250 @@ void main() {
         ),
       );
 
-      expect(passedOptions, isNotNull);
-      expect(passedOptions!['imageFormat'], equals('jpg'));
-      expect(passedOptions!['jpgCompressionQuality'], equals(0.5));
-      expect(passedOptions!['defaultFilter'], equals('blackAndWhite'));
-      expect(passedOptions!['showFilterBar'], isFalse);
+      expect(_lastArguments['noOfPages'], 3);
+      expect(_lastArguments['scannerSource'], 'camera_and_gallery');
+      expect(_lastArguments['output'], 'images_and_pdf');
+      expect(_lastArguments['androidScannerMode'], 'base_with_filter');
+      expect(_lastArguments['iosScannerOptions'], <String, Object?>{
+        'imageFormat': 'jpg',
+        'jpgCompressionQuality': 0.5,
+        'defaultFilter': 'blackAndWhite',
+        'showFilterBar': false,
+      });
     });
 
-    test('IosScannerOptions rejects an out-of-range compression quality', () {
+    test('maps every ScanOutput to its channel value', () {
+      expect(ScanOutput.images.methodChannelValue, 'images');
+      expect(ScanOutput.pdf.methodChannelValue, 'pdf');
+      expect(ScanOutput.imagesAndPdf.methodChannelValue, 'images_and_pdf');
+    });
+
+    test('returns images, PDF and discarded pages as a ScanResult', () async {
+      _mockScan(<String, Object?>{
+        'images': <String>['/a.jpg', '/b.jpg'],
+        'pdf': '/doc.pdf',
+        'discardedPages': 2,
+      });
+
+      final result = await CunningDocumentScanner.scanDocuments(
+          output: ScanOutput.imagesAndPdf);
+
       expect(
-        () => IosScannerOptions(jpgCompressionQuality: 1.5),
-        throwsA(isA<ArgumentError>()),
+        result,
+        const ScanResult(
+          images: <String>['/a.jpg', '/b.jpg'],
+          pdf: '/doc.pdf',
+          discardedPages: 2,
+        ),
+      );
+    });
+
+    test('reads a missing PDF and discarded count as null and 0', () async {
+      _mockScan(<String, Object?>{
+        'images': <String>['/a.jpg']
+      });
+
+      final result = await CunningDocumentScanner.scanDocuments();
+
+      expect(result!.pdf, isNull);
+      expect(result.discardedPages, 0);
+    });
+
+    test('returns null when the user cancels', () async {
+      _mockScan(null);
+      expect(await CunningDocumentScanner.scanDocuments(), isNull);
+    });
+
+    test('treats a result with no files as a cancellation', () async {
+      _mockScan(<String, Object?>{'images': <String>[], 'discardedPages': 0});
+      expect(await CunningDocumentScanner.scanDocuments(), isNull);
+    });
+
+    test('rejects a non-positive page limit before reaching native code',
+        () async {
+      _mockScan(null);
+      expect(() => CunningDocumentScanner.scanDocuments(noOfPages: 0),
+          throwsArgumentError);
+      expect(() => CunningDocumentScanner.scanDocuments(noOfPages: -5),
+          throwsArgumentError);
+      expect(_calls, isEmpty);
+    });
+
+    test('maps a PlatformException to the package exception', () async {
+      _mockNative((_) => throw PlatformException(
+            code: 'permission_denied',
+            message: 'Camera permission not granted',
+          ));
+
+      await expectLater(
+        CunningDocumentScanner.scanDocuments(),
+        throwsA(isA<CunningDocumentScannerException>()
+            .having((e) => e.code, 'code', 'permission_denied')
+            .having(
+                (e) => e.message, 'message', 'Camera permission not granted')),
+      );
+    });
+
+    test('surfaces a missing native plugin', () async {
+      await expectLater(CunningDocumentScanner.scanDocuments(),
+          throwsA(isA<MissingPluginException>()));
+    });
+  });
+
+  group('getPictures (deprecated)', () {
+    test('returns the page images', () async {
+      _mockScan(<String, Object?>{
+        'images': <String>['/a.jpg', '/b.jpg']
+      });
+
+      final pictures = await CunningDocumentScanner.getPictures();
+
+      expect(pictures, <String>['/a.jpg', '/b.jpg']);
+      expect(_lastArguments['output'], 'images');
+    });
+
+    test('still returns a growable list', () async {
+      _mockScan(<String, Object?>{
+        'images': <String>['/a.jpg']
+      });
+
+      final pictures = await CunningDocumentScanner.getPictures();
+      pictures!.add('/extra.jpg');
+
+      expect(pictures, hasLength(2));
+    });
+
+    test('returns the PDF as a single-element list with asPdf', () async {
+      _mockScan(<String, Object?>{'pdf': '/doc.pdf'});
+
+      final pictures = await CunningDocumentScanner.getPictures(asPdf: true);
+
+      expect(pictures, <String>['/doc.pdf']);
+      expect(_lastArguments['output'], 'pdf');
+    });
+
+    test('returns null when the user cancels', () async {
+      _mockScan(null);
+      expect(await CunningDocumentScanner.getPictures(), isNull);
+    });
+
+    test('resolves the deprecated isGalleryImportAllowed flag', () async {
+      _mockScan(null);
+
+      await CunningDocumentScanner.getPictures(isGalleryImportAllowed: true);
+      expect(_lastArguments['scannerSource'], 'camera_and_gallery');
+
+      await CunningDocumentScanner.getPictures(isGalleryImportAllowed: false);
+      expect(_lastArguments['scannerSource'], 'camera');
+    });
+
+    test('prefers scannerSource over the deprecated flag', () async {
+      _mockScan(null);
+
+      await CunningDocumentScanner.getPictures(
+        isGalleryImportAllowed: true,
+        scannerSource: ScannerSource.gallery,
+      );
+
+      expect(_lastArguments['scannerSource'], 'gallery');
+    });
+
+    test('rejects a non-positive page limit', () {
+      expect(() => CunningDocumentScanner.getPictures(noOfPages: 0),
+          throwsArgumentError);
+    });
+  });
+
+  group('cleanCache', () {
+    test('calls the native method', () async {
+      _mockNative((_) => null);
+
+      await CunningDocumentScanner.cleanCache();
+
+      expect(_calls.single.method, 'cleanCache');
+    });
+
+    test('maps a PlatformException to the package exception', () async {
+      _mockNative((_) => throw PlatformException(
+            code: 'CLEAN_CACHE_ERROR',
+            message: 'Permission denied',
+          ));
+
+      await expectLater(
+        CunningDocumentScanner.cleanCache(),
+        throwsA(isA<CunningDocumentScannerException>()
+            .having((e) => e.code, 'code', 'CLEAN_CACHE_ERROR')),
+      );
+    });
+  });
+
+  group('CunningDocumentScannerPlatform', () {
+    late CunningDocumentScannerPlatform original;
+
+    setUp(() => original = CunningDocumentScannerPlatform.instance);
+    tearDown(() => CunningDocumentScannerPlatform.instance = original);
+
+    test('defaults to the method channel implementation', () {
+      expect(CunningDocumentScannerPlatform.instance,
+          isA<MethodChannelCunningDocumentScanner>());
+    });
+
+    test('routes every call to a replaced instance', () async {
+      final fake = _FakeScanner();
+      CunningDocumentScannerPlatform.instance = fake;
+
+      final result = await CunningDocumentScanner.scanDocuments(
+        noOfPages: 4,
+        scannerSource: ScannerSource.gallery,
+        output: ScanOutput.pdf,
+      );
+      await CunningDocumentScanner.cleanCache();
+
+      expect(result!.images, <String>['/fake/page.jpg']);
+      expect(fake.noOfPages, 4);
+      expect(fake.scannerSource, ScannerSource.gallery);
+      expect(fake.output, ScanOutput.pdf);
+      expect(fake.cleaned, isTrue);
+      expect(_calls, isEmpty);
+    });
+
+    test('still validates arguments before a replaced instance', () {
+      CunningDocumentScannerPlatform.instance = _FakeScanner();
+      expect(() => CunningDocumentScanner.scanDocuments(noOfPages: 0),
+          throwsArgumentError);
+    });
+  });
+
+  group('ScanResult', () {
+    test('compares by value', () {
+      expect(
+        const ScanResult(images: <String>['/a.jpg'], pdf: '/d.pdf'),
+        const ScanResult(images: <String>['/a.jpg'], pdf: '/d.pdf'),
       );
       expect(
-        () => IosScannerOptions(jpgCompressionQuality: -0.1),
-        throwsA(isA<ArgumentError>()),
+        const ScanResult(images: <String>['/a.jpg']).hashCode,
+        const ScanResult(images: <String>['/a.jpg']).hashCode,
       );
+      expect(
+        const ScanResult(images: <String>['/a.jpg']),
+        isNot(const ScanResult(images: <String>['/b.jpg'])),
+      );
+    });
+
+    test('exposes an unmodifiable image list when built from a map', () {
+      final result = ScanResult.fromMap(<Object?, Object?>{
+        'images': <Object?>['/a.jpg']
+      });
+      expect(() => result.images.add('/b.jpg'), throwsUnsupportedError);
+    });
+  });
+
+  group('IosScannerOptions', () {
+    test('rejects an out-of-range compression quality', () {
+      expect(() => IosScannerOptions(jpgCompressionQuality: 1.5),
+          throwsArgumentError);
+      expect(() => IosScannerOptions(jpgCompressionQuality: -0.1),
+          throwsArgumentError);
     });
   });
 }

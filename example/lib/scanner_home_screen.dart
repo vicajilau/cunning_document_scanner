@@ -17,8 +17,8 @@ class ScannerHomeScreen extends StatefulWidget {
 
 class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
   List<String> _pictures = [];
+  String? _pdf;
   bool _asPdf = false;
-  bool _isPdfResult = false;
   bool _isGalleryImportAllowed = false;
   bool _useScannerSource = true;
   int _noOfPages = 100;
@@ -235,76 +235,76 @@ class _ScannerHomeScreenState extends State<ScannerHomeScreen> {
           ElevatedButton(
               onPressed: onPressed, child: Text(strings.addPictures)),
           const SizedBox(height: 20),
-          if (_isPdfResult)
-            for (var picture in _pictures)
-              Card(
-                clipBehavior: Clip.antiAlias,
-                margin: const EdgeInsets.all(16.0),
-                child: InkWell(
-                  onTap: () {
-                    OpenFile.open(picture);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.picture_as_pdf,
-                            size: 64, color: Colors.red),
-                        const SizedBox(height: 8),
-                        Text(
-                          picture,
-                          style: const TextStyle(fontSize: 12),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.open_in_new,
-                                size: 16, color: Colors.blue),
-                            const SizedBox(width: 4),
-                            Text(
-                              strings.tapToOpenPdf,
-                              style: const TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                              ),
+          if (_pdf case final pdf?)
+            Card(
+              clipBehavior: Clip.antiAlias,
+              margin: const EdgeInsets.all(16.0),
+              child: InkWell(
+                onTap: () {
+                  OpenFile.open(pdf);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.picture_as_pdf,
+                          size: 64, color: Colors.red),
+                      const SizedBox(height: 8),
+                      Text(
+                        pdf,
+                        style: const TextStyle(fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.open_in_new,
+                              size: 16, color: Colors.blue),
+                          const SizedBox(width: 4),
+                          Text(
+                            strings.tapToOpenPdf,
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              )
-          else
-            for (var picture in _pictures) Image.file(File(picture))
+              ),
+            ),
+          for (var picture in _pictures) Image.file(File(picture))
         ],
       )),
     );
   }
 
   void onPressed() async {
-    List<String> pictures;
     try {
-      pictures = await CunningDocumentScanner.getPictures(
-              noOfPages: _noOfPages,
-              scannerSource: _useScannerSource ? _scannerSource : null,
-              // ignore: deprecated_member_use
-              isGalleryImportAllowed: _isGalleryImportAllowed,
-              androidScannerMode: _androidScannerMode,
-              asPdf: _asPdf,
-              iosScannerOptions: IosScannerOptions(
-                imageFormat: IosImageFormat.jpg,
-                jpgCompressionQuality: 0.5,
-                defaultFilter: _iosDefaultFilter,
-                showFilterBar: _iosShowFilterBar,
-              )) ??
-          [];
+      final result = await CunningDocumentScanner.scanDocuments(
+        noOfPages: _noOfPages,
+        scannerSource: _useScannerSource
+            ? _scannerSource
+            : (_isGalleryImportAllowed
+                ? ScannerSource.cameraAndGallery
+                : ScannerSource.camera),
+        androidScannerMode: _androidScannerMode,
+        // The PDF switch asks for the pages as well, to show both kinds of output.
+        output: _asPdf ? ScanOutput.imagesAndPdf : ScanOutput.images,
+        iosScannerOptions: IosScannerOptions(
+          imageFormat: IosImageFormat.jpg,
+          jpgCompressionQuality: 0.5,
+          defaultFilter: _iosDefaultFilter,
+          showFilterBar: _iosShowFilterBar,
+        ),
+      );
       if (!mounted) return;
       setState(() {
-        _pictures = pictures;
-        _isPdfResult = _asPdf;
+        _pictures = result?.images ?? const [];
+        _pdf = result?.pdf;
       });
     } on ArgumentError catch (exception) {
       if (!mounted) return;
