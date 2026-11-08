@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# A newer push to the same branch or pull request makes the running checks moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Filtering happens here rather than on the trigger so the check always reports
   # a status, which is what a required check on a protected branch needs.
@@ -48,6 +53,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Install Dependencies
         run: flutter pub get
@@ -57,6 +63,41 @@ jobs:
 
       - name: Analyze Project Source
         run: flutter analyze
+
+      - name: Run Tests
+        run: flutter test
+
+  # pubspec.yaml promises Flutter 3.24 / Dart 3.5, while the job above only sees the
+  # latest stable. This catches an API from a newer SDK slipping into lib/.
+  flutter-minimum:
+    name: Flutter Tests (minimum supported SDK)
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          # Keep in step with the lower bound of `environment.flutter` in pubspec.yaml.
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+
+      # flutter_lints 6 needs Dart 3.8. It is a dev dependency, so apps using the
+      # plugin never resolve it, and it is dropped here for the same reason. The
+      # example app is skipped because it targets the current SDK.
+      - name: Drop Lints Unavailable on the Minimum SDK
+        run: |
+          sed -i '/^  flutter_lints:/d' pubspec.yaml
+          sed -i '/^include: package:flutter_lints/d' analysis_options.yaml
+
+      - name: Install Dependencies
+        run: flutter pub get --no-example
+
+      # Infos are not fatal: older analyzers report lints that later releases dropped.
+      - name: Analyze Project Source
+        run: flutter analyze --no-fatal-infos lib test
 
       - name: Run Tests
         run: flutter test
