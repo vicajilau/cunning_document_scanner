@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# A newer push to the same branch or pull request makes the running checks moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Deliberately unfiltered. The check is plain bash with no toolchain to install
   # and finishes in seconds, so gating it would cost more than running it, and an

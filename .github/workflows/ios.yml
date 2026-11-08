@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# A newer push to the same branch or pull request makes the running checks moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Filtering happens here rather than on the trigger so the check always reports
   # a status, which is what a required check on a protected branch needs.
@@ -50,6 +55,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Run SwiftLint
         run: |

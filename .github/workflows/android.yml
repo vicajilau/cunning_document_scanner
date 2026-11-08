@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# A newer push to the same branch or pull request makes the running checks moot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Filtering happens here rather than on the trigger so the check always reports
   # a status, which is what a required check on a protected branch needs.
@@ -51,15 +56,26 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # Caches the Gradle distribution as well as dependencies, so a build does not
+          # depend on GitHub Releases answering every time.
+          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
+      # Pinned so a new ktlint release cannot start failing the build on its own.
+      # -f makes an HTTP error fail here instead of saving the error page as the binary.
       - name: Install Ktlint
+        env:
+          KTLINT_VERSION: '1.8.0'
         run: |
-          curl -sSL https://github.com/pinterest/ktlint/releases/latest/download/ktlint -o /usr/local/bin/ktlint
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+            "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint" \
+            -o /usr/local/bin/ktlint
           chmod +x /usr/local/bin/ktlint
+          ktlint --version
 
       - name: Run Ktlint Check
         run: ktlint "android/**/*.kt"
