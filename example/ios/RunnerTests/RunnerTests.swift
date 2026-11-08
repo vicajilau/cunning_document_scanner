@@ -202,3 +202,74 @@ final class ResourcePackagingTests: XCTestCase {
         XCTAssertNil(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"))
     }
 }
+
+/// Dismissals the user starts by swiping or tapping outside, which UIKit reports only to the
+/// presentation controller delegate. Each must deliver the pending result, or every later scan
+/// is rejected as ALREADY_ACTIVE.
+final class DismissalTests: XCTestCase {
+
+    /// A plugin with a scan in flight, recording what its result callback receives.
+    private func pluginAwaitingResult() -> (CunningDocumentScannerPlugin, () -> [Any?]) {
+        let plugin = CunningDocumentScannerPlugin()
+        var delivered: [Any?] = []
+        plugin.resultChannel = { delivered.append($0) }
+        return (plugin, { delivered })
+    }
+
+    func testThePhotoPickerReportsItsDismissalToThePlugin() throws {
+        let plugin = CunningDocumentScannerPlugin()
+        let picker = plugin.makeGalleryPicker()
+
+        let delegate = try XCTUnwrap(picker.presentationController?.delegate)
+        XCTAssertTrue(delegate === plugin)
+    }
+
+    /// The case from issue #183: Gallery chosen from the Camera & Gallery sheet on iPhone,
+    /// then the picker swiped away.
+    func testSwipingThePhotoPickerAwayCancelsTheScan() throws {
+        let (plugin, delivered) = pluginAwaitingResult()
+        plugin.isHandlingAlertAction = true
+        let picker = plugin.makeGalleryPicker()
+
+        plugin.presentationControllerDidDismiss(try XCTUnwrap(picker.presentationController))
+
+        XCTAssertEqual(delivered().count, 1)
+        XCTAssertNil(delivered()[0])
+        XCTAssertNil(plugin.resultChannel, "a new scan could not start")
+    }
+
+    func testTheDismissalAfterChoosingAnActionIsIgnored() throws {
+        let (plugin, delivered) = pluginAwaitingResult()
+        plugin.isHandlingAlertAction = true
+        // Stands in for the iPad popover: replacing an alert's presentation delegate traps (#178).
+        let sheet = UIViewController()
+
+        plugin.presentationControllerDidDismiss(try XCTUnwrap(sheet.presentationController))
+
+        XCTAssertTrue(delivered().isEmpty)
+        XCTAssertNotNil(plugin.resultChannel)
+        XCTAssertFalse(plugin.isHandlingAlertAction)
+    }
+
+    func testTappingOutsideThePopoverCancelsTheScan() throws {
+        let (plugin, delivered) = pluginAwaitingResult()
+        // Stands in for the iPad popover: replacing an alert's presentation delegate traps (#178).
+        let sheet = UIViewController()
+
+        plugin.presentationControllerDidDismiss(try XCTUnwrap(sheet.presentationController))
+
+        XCTAssertEqual(delivered().count, 1)
+        XCTAssertNil(plugin.resultChannel)
+    }
+
+    func testAResultIsDeliveredOnlyOnce() throws {
+        let (plugin, delivered) = pluginAwaitingResult()
+        let picker = plugin.makeGalleryPicker()
+        let presentation = try XCTUnwrap(picker.presentationController)
+
+        plugin.presentationControllerDidDismiss(presentation)
+        plugin.presentationControllerDidDismiss(presentation)
+
+        XCTAssertEqual(delivered().count, 1)
+    }
+}
