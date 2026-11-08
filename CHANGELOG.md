@@ -1,3 +1,11 @@
+## 3.0.5
+
+### Added
+* **An iOS privacy manifest.** Apple expects every third-party SDK to ship a `PrivacyInfo.xcprivacy`. The plugin's declares no tracking, no collected data (scans never leave the device) and no required-reason APIs. It is packaged in its own resource bundle under CocoaPods, so it cannot collide with your app's own manifest.
+
+### Fixed
+* The podspec `homepage` and the README links pointed at the original `jachzen` repository, and the podspec declared Swift 5.0 while `Package.swift` requires the 5.9 toolchain.
+
 ## 3.0.4
 
 ### Changed
