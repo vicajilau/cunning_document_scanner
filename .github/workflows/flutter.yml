@@ -86,14 +86,16 @@ jobs:
 
       # flutter_lints 6 needs Dart 3.8. It is a dev dependency, so apps using the
       # plugin never resolve it, and it is dropped here for the same reason. The
-      # example app is skipped because it targets the current SDK.
-      - name: Drop Lints Unavailable on the Minimum SDK
+      # example app targets the current SDK, so it is removed from this checkout:
+      # `pub get --no-example` still reads example/.dart_tool on 3.24 and fails.
+      - name: Drop What the Minimum SDK Cannot Resolve
         run: |
           sed -i '/^  flutter_lints:/d' pubspec.yaml
           sed -i '/^include: package:flutter_lints/d' analysis_options.yaml
+          rm -rf example
 
       - name: Install Dependencies
-        run: flutter pub get --no-example
+        run: flutter pub get
 
       # Infos are not fatal: older analyzers report lints that later releases dropped.
       - name: Analyze Project Source
