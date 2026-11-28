@@ -1,7 +1,6 @@
 import 'package:cunning_document_scanner_example/example_strings.dart';
 import 'package:cunning_document_scanner_example/scanner_home_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const MyApp());
